@@ -1,6 +1,7 @@
 ﻿using Microsoft.Build.Locator;
 
 using VTech.AsyncRefactoring.Base.CodeGraph.Nodes;
+using VTech.AsyncRefactoring.Base.MethodSelector;
 
 namespace VTech.AsyncRefactoring.Base;
 
@@ -24,9 +25,9 @@ public sealed class AsyncronizationProcessor
         _node = await SolutionNode.CreateAsync(_solutionPath);
     }
 
-    public object CollectSuggestedChanges(object entryPoint)
+    public object CollectSuggestedChanges(IMethodSelector methodSelector)
     {
-        _node.DetectIssues();
+        _node.DetectIssues(methodSelector);
 
         _node.Print();
 

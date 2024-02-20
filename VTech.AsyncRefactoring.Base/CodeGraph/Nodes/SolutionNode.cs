@@ -1,5 +1,4 @@
-﻿
-
+﻿using VTech.AsyncRefactoring.Base.MethodSelector;
 using VTech.AsyncRefactoring.Base.Rules;
 
 namespace VTech.AsyncRefactoring.Base.CodeGraph.Nodes;
@@ -15,6 +14,8 @@ public class SolutionNode
         _workspace = workspace;
         _solution = solution;
     }
+
+    public IReadOnlyCollection<ProjectNode> Projects => _projects;
 
     private async Task InitProjectsAsync()
     {
@@ -122,7 +123,7 @@ public class SolutionNode
         }
     }
 
-    internal void DetectIssues()
+    internal void DetectIssues(IMethodSelector methodSelector)
     {
         List<IRule> rules =
         [
@@ -130,7 +131,8 @@ public class SolutionNode
             new GetAwaiterGetResultRule(),
             new ResultRule(),
         ];
-        foreach (var method in AllMethods)
+
+        foreach (var method in methodSelector.Select(this))
         {
             method.DetectIssues(rules);
         }

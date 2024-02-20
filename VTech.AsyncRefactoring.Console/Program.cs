@@ -1,6 +1,7 @@
 ﻿using System.Threading.Tasks;
 
 using VTech.AsyncRefactoring.Base;
+using VTech.AsyncRefactoring.Base.MethodSelector;
 
 namespace VTech.AsyncRefactoring.Console
 {
@@ -18,7 +19,7 @@ namespace VTech.AsyncRefactoring.Console
 
             AsyncronizationProcessor asyncronizationProcessor = new(path);
             await asyncronizationProcessor.InitializeCodeMapAsync();
-            _ = asyncronizationProcessor.CollectSuggestedChanges(null);
+            _ = asyncronizationProcessor.CollectSuggestedChanges(new AllMethodSelector());
             await asyncronizationProcessor.ApplyChangesAsync(null);
             System.Console.ReadKey();
         }
