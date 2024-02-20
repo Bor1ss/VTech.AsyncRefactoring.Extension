@@ -79,8 +79,6 @@ public sealed class AsyncronizationProcessor
             }
         }
 
-
-        //await _node.FixAsync();
         Console.WriteLine("Done");
     }
 }

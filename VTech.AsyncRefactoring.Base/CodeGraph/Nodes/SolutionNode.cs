@@ -140,27 +140,5 @@ public class SolutionNode
         {
             method.AsynchronizeMethod();
         }
-
-        foreach (var method in AllMethods)
-        {
-            method.AsynchronizeCalls();
-        }
-    }
-
-    internal async Task FixAsync()
-    {
-        var solution = _solution;
-               
-        foreach (var doc in _projects.SelectMany(x => x.Documents))
-        {
-            await doc.SaveAsync();
-        }
-
-        var isUpdated = _workspace.TryApplyChanges(solution);
-
-        if (isUpdated)
-        {
-            _solution = solution;
-        };
     }
 }

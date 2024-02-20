@@ -332,16 +332,6 @@ public class MethodNode
         _nodeReplacements.Add(old, @new);
     }
 
-    internal void AsynchronizeCalls()
-    {
-        if (!IsAsyncNeeded || IsAsynchronizedCalls)
-        {
-            return;
-        }
-
-
-    }
-
     public override bool Equals(object obj)
     {
         if (this is null && obj is null)
