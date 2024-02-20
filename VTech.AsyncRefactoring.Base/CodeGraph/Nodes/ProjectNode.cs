@@ -71,6 +71,7 @@ public class ProjectNode
         return (compilation, docs);
     }
 
+    internal string Id => _project.Name;
     internal IReadOnlyList<DocumentNode> Documents => _documents;
     internal Compilation Compilation => _compilation;
 

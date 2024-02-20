@@ -1,4 +1,8 @@
-﻿namespace VTech.AsyncRefactoring.Base.CodeGraph.Nodes;
+﻿using Microsoft.CodeAnalysis.Text;
+
+using VTech.AsyncRefactoring.Base.Utils;
+
+namespace VTech.AsyncRefactoring.Base.CodeGraph.Nodes;
 
 public class DocumentNode
 {
@@ -38,11 +42,15 @@ public class DocumentNode
         return document;
     }
 
+    internal string Id => _document.Name;
     internal IReadOnlyList<BaseTypeDeclarationNode> TypeDeclarationNodes => _typeDeclarations;
     internal ProjectNode Parent => _parent;
     internal SemanticModel SemanticModel => _semanticModel;
     internal SyntaxTree Tree => _tree;
     internal SyntaxNode Root => _root;
+    internal bool HasChangesPrepared => _nodeReplacements.Count > 0
+        || _tokenReplacements.Count > 0
+        || _triviaReplacements.Count > 0;
 
     public void AddTypeDeclaration(BaseTypeDeclarationNode declaration)
     {
@@ -77,6 +85,23 @@ public class DocumentNode
         _triviaReplacements.Add(old, @new);
     }
 
+    public List<TextChange> GetDiffs()
+    {
+        if (_nodeReplacements.Count == 0 && _tokenReplacements.Count == 0 && _triviaReplacements.Count == 0)
+        {
+            return [];
+        }
+
+        SyntaxNode changedRoot = _root.ReplaceSyntax(
+            _nodeReplacements.Keys, (a, _) => _nodeReplacements[a],
+            _tokenReplacements.Keys, (a, _) => _tokenReplacements[a],
+            _triviaReplacements.Keys, (a, _) => _triviaReplacements[a]);
+
+        return changedRoot.SyntaxTree
+            .GetChanges(_tree)
+            .ToList();
+    }
+
     public async Task SaveAsync()
     {
         if(_nodeReplacements.Count == 0 && _tokenReplacements.Count == 0 && _triviaReplacements.Count == 0)
@@ -92,5 +117,12 @@ public class DocumentNode
         var text = _root.GetText();
 
         await Task.Run(() => System.IO.File.WriteAllText(_document.FilePath, text.ToString()));
+    }
+
+    internal void ApplyChanges(List<TextChange> textChanges)
+    {
+        var text = _root.GetText().WithChanges(textChanges);
+
+        System.IO.File.WriteAllText(_document.FilePath, text.ToString());
     }
 }

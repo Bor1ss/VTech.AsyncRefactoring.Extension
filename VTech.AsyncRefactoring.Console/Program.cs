@@ -19,8 +19,8 @@ namespace VTech.AsyncRefactoring.Console
 
             AsyncronizationProcessor asyncronizationProcessor = new(path);
             await asyncronizationProcessor.InitializeCodeMapAsync();
-            _ = asyncronizationProcessor.CollectSuggestedChanges(new AllMethodSelector());
-            await asyncronizationProcessor.ApplyChangesAsync(null);
+            var changes = asyncronizationProcessor.CollectSuggestedChanges(new AllMethodSelector());
+            await asyncronizationProcessor.ApplyChangesAsync(changes);
             System.Console.ReadKey();
         }
     }

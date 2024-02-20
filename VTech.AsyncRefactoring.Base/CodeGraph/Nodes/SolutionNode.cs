@@ -54,10 +54,6 @@ public class SolutionNode
                            MetadataReference.CreateFromFile(typeof(Task<>).Assembly.Location))
             .AddSyntaxTrees(syntaxTrees);
 
-        //foreach (var project in projects)
-        //{
-        //    _projects.Add(await ProjectNode.CreateAsync(this, project));
-        //}
         foreach (var (project, docs) in projDocs)
         {
             _projects.Add(await ProjectNode.CreateAsync(this, project, compilation, docs));
@@ -138,10 +134,8 @@ public class SolutionNode
         }
     }
 
-    internal async Task FixAsync()
+    internal void PrepareFixes()
     {
-        var solution = _solution;
-
         foreach (var method in AllMethods.OrderByDescending(x => x.Depth))
         {
             method.AsynchronizeMethod();
@@ -151,7 +145,12 @@ public class SolutionNode
         {
             method.AsynchronizeCalls();
         }
+    }
 
+    internal async Task FixAsync()
+    {
+        var solution = _solution;
+               
         foreach (var doc in _projects.SelectMany(x => x.Documents))
         {
             await doc.SaveAsync();
