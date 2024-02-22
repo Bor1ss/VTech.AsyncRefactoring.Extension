@@ -12,6 +12,11 @@ public sealed class AsyncronizationProcessor
 
     static AsyncronizationProcessor()
     {
+        if (MSBuildLocator.IsRegistered)
+        {
+            return;
+        }
+
         MSBuildLocator.RegisterDefaults();
     }
 

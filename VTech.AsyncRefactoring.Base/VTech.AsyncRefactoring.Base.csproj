@@ -144,6 +144,9 @@
     <Compile Include="CodeGraph\Nodes\SolutionNode.cs" />
     <Compile Include="CodeGraph\SymbolInfoStorage.cs" />
     <Compile Include="MethodSelector\AllMethodSelector.cs" />
+    <Compile Include="MethodSelector\BaseMethodSelector.cs" />
+    <Compile Include="MethodSelector\CoursorRelatedMethodSelector.cs" />
+    <Compile Include="MethodSelector\FileRelatedMethodSelector.cs" />
     <Compile Include="MethodSelector\IMethodSelector.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Rules\GetAwaiterGetResultRule.cs" />

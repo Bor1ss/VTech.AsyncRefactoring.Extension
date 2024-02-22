@@ -58,6 +58,26 @@ public class MethodNode
     public bool IsAsynchronizedCalls { get; private set; }
     public int Depth { get; private set; } = 0;
 
+    public List<MethodNode> GetRelatedMethods()
+    {
+        List<MethodNode> relatedMethods = new();
+
+        relatedMethods.Add(_overidedMethod);
+        relatedMethods.AddRange(_implementedMethods);
+        relatedMethods.AddRange(_overridedByMethods);
+        relatedMethods.AddRange(_implemenetedByMethods);
+        relatedMethods.AddRange(_invokedMethods);
+        relatedMethods.AddRange(_invokedByMethods);
+        relatedMethods.AddRange(_internalMethods);
+
+        if(_parentMethod is not null)
+        {
+            relatedMethods.Add(_parentMethod);
+        }
+
+        return relatedMethods.Distinct().ToList();
+    }
+
     public void AddInternalMethod(MethodNode method)
     {
         _internalMethods.Add(method);
