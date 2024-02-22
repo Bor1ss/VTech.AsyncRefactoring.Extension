@@ -60,22 +60,22 @@ public class MethodNode
 
     public List<MethodNode> GetRelatedMethods()
     {
-        List<MethodNode> relatedMethods = new();
+        List<MethodNode> relatedMethods =
+        [
+            _overidedMethod,
+            _parentMethod,
+            .. _implementedMethods,
+            .. _overridedByMethods,
+            .. _implemenetedByMethods,
+            .. _invokedMethods,
+            .. _invokedByMethods,
+            .. _internalMethods,
+        ];
 
-        relatedMethods.Add(_overidedMethod);
-        relatedMethods.AddRange(_implementedMethods);
-        relatedMethods.AddRange(_overridedByMethods);
-        relatedMethods.AddRange(_implemenetedByMethods);
-        relatedMethods.AddRange(_invokedMethods);
-        relatedMethods.AddRange(_invokedByMethods);
-        relatedMethods.AddRange(_internalMethods);
-
-        if(_parentMethod is not null)
-        {
-            relatedMethods.Add(_parentMethod);
-        }
-
-        return relatedMethods.Distinct().ToList();
+        return relatedMethods
+            .Distinct()
+            .Where(x => x is not null)
+            .ToList();
     }
 
     public void AddInternalMethod(MethodNode method)
