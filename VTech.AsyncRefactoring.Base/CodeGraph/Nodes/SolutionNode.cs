@@ -1,4 +1,6 @@
-﻿using VTech.AsyncRefactoring.Base.MethodSelector;
+﻿using Microsoft.CodeAnalysis;
+
+using VTech.AsyncRefactoring.Base.MethodSelector;
 using VTech.AsyncRefactoring.Base.Rules;
 
 namespace VTech.AsyncRefactoring.Base.CodeGraph.Nodes;
@@ -73,6 +75,11 @@ public class SolutionNode
 
         Solution msSolution = await workspace.OpenSolutionAsync(path);
 
+        return await CreateAsync(msSolution);
+    }
+
+    public async static Task<SolutionNode> CreateAsync(Solution msSolution)
+    {
         SolutionNode solution = new(msSolution);
         await solution.InitProjectsAsync();
 

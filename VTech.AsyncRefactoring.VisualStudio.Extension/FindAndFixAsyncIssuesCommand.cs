@@ -12,68 +12,37 @@ using EnvDTE80;
 using Task = System.Threading.Tasks.Task;
 using VTech.AsyncRefactoring.Base;
 using VTech.AsyncRefactoring.Base.MethodSelector;
+using Microsoft.VisualStudio.LanguageServices;
+using Microsoft.VisualStudio.ComponentModelHost;
 
 namespace VTech.AsyncRefactoring.VisualStudio.Extension;
-/// <summary>
-/// Command handler
-/// </summary>
+
+
 internal sealed class FindAndFixAsyncIssuesCommand
 {
-    /// <summary>
-    /// Command ID.
-    /// </summary>
-    public const int CommandId = 0x0100;
+    public const int COMMAND_ID = 0x0100;
 
-    /// <summary>
-    /// Command menu group (command set GUID).
-    /// </summary>
-    public static readonly Guid CommandSet = new Guid("ee07953a-bfcf-4e38-8927-a2bf4e0a8eb0");
+    public static readonly Guid CommandSet = new("ee07953a-bfcf-4e38-8927-a2bf4e0a8eb0");
 
-    /// <summary>
-    /// VS Package that provides this command, not null.
-    /// </summary>
-    private readonly AsyncPackage package;
+    private readonly AsyncPackage _package;
+    private readonly VisualStudioWorkspace _visualStudioWorkspace;
 
-    /// <summary>
-    /// Initializes a new instance of the <see cref="FindAndFixAsyncIssuesCommand"/> class.
-    /// Adds our command handlers for menu (commands must exist in the command table file)
-    /// </summary>
-    /// <param name="package">Owner package, not null.</param>
-    /// <param name="commandService">Command service to add command to, not null.</param>
-    private FindAndFixAsyncIssuesCommand(AsyncPackage package, OleMenuCommandService commandService)
+
+    private FindAndFixAsyncIssuesCommand(AsyncPackage package, OleMenuCommandService commandService, VisualStudioWorkspace visualStudioWorkspace)
     {
-        this.package = package ?? throw new ArgumentNullException(nameof(package));
+        _package = package ?? throw new ArgumentNullException(nameof(package));
+        _visualStudioWorkspace = visualStudioWorkspace ?? throw new ArgumentNullException(nameof(visualStudioWorkspace));
         commandService = commandService ?? throw new ArgumentNullException(nameof(commandService));
 
-        var menuCommandID = new CommandID(CommandSet, CommandId);
+        var menuCommandID = new CommandID(CommandSet, COMMAND_ID);
         var menuItem = new MenuCommand(this.Execute, menuCommandID);
         commandService.AddCommand(menuItem);
     }
 
-    /// <summary>
-    /// Gets the instance of the command.
-    /// </summary>
-    public static FindAndFixAsyncIssuesCommand Instance
-    {
-        get;
-        private set;
-    }
+    public static FindAndFixAsyncIssuesCommand Instance { get; private set; }
 
-    /// <summary>
-    /// Gets the service provider from the owner package.
-    /// </summary>
-    private Microsoft.VisualStudio.Shell.IAsyncServiceProvider ServiceProvider
-    {
-        get
-        {
-            return this.package;
-        }
-    }
+    private Microsoft.VisualStudio.Shell.IAsyncServiceProvider ServiceProvider => _package;
 
-    /// <summary>
-    /// Initializes the singleton instance of the command.
-    /// </summary>
-    /// <param name="package">Owner package, not null.</param>
     public static async Task InitializeAsync(AsyncPackage package)
     {
         // Switch to the main thread - the call to AddCommand in FindAndFixAsyncIssuesCommand's constructor requires
@@ -81,9 +50,11 @@ internal sealed class FindAndFixAsyncIssuesCommand
         await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync(package.DisposalToken);
 
         OleMenuCommandService commandService = await package.GetServiceAsync(typeof(IMenuCommandService)) as OleMenuCommandService;
-        Instance = new FindAndFixAsyncIssuesCommand(package, commandService);
 
+        IComponentModel componentModel = (IComponentModel)(await package.GetServiceAsync(typeof(SComponentModel)));
+        VisualStudioWorkspace visualStudioWorkspace = componentModel.GetService<VisualStudioWorkspace>();
 
+        Instance = new FindAndFixAsyncIssuesCommand(package, commandService, visualStudioWorkspace);
     }
 
 
@@ -107,11 +78,7 @@ internal sealed class FindAndFixAsyncIssuesCommand
             throw new Exception("ActiveDocument not found");
         }
 
-        string fileName = dte.Solution.FileName;
-
-        ProjectItem activeProjectItem = activeDoc.ProjectItem;
-
-        string projectId = activeProjectItem.Name;
+        string projectId = activeDoc.ProjectItem.ContainingProject.Name;
         string codeFileId = dte.ActiveDocument.Name;
 
         IMethodSelector methodSelector;
@@ -125,16 +92,16 @@ internal sealed class FindAndFixAsyncIssuesCommand
             methodSelector = new CoursorRelatedMethodSelector(projectId, codeFileId, textSelection.CurrentLine, textSelection.CurrentColumn);
         }
 
-        ExecuteAsync(fileName, methodSelector);
+        ExecuteAsync(methodSelector);
     }
 
-    private async Task ExecuteAsync(string solutionPath, IMethodSelector methodSelector)
+    private async Task ExecuteAsync(IMethodSelector methodSelector)
     {
         string title = "Success";
         string msg = "done";
         try
         {
-            AsyncronizationProcessor asyncronizationProcessor = new(solutionPath);
+            AsyncronizationProcessor asyncronizationProcessor = new(_visualStudioWorkspace.CurrentSolution);
             await asyncronizationProcessor.InitializeCodeMapAsync();
 
             var changes = asyncronizationProcessor.CollectSuggestedChanges(methodSelector);
@@ -149,10 +116,10 @@ internal sealed class FindAndFixAsyncIssuesCommand
             msg = ex.Message;
         }
 
-        await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync(package.DisposalToken);
+        await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync(_package.DisposalToken);
 
         VsShellUtilities.ShowMessageBox(
-            this.package,
+            this._package,
             msg,
             title,
             OLEMSGICON.OLEMSGICON_INFO,

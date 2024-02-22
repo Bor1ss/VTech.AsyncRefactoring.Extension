@@ -1,4 +1,5 @@
 ﻿using Microsoft.Build.Locator;
+using Microsoft.CodeAnalysis;
 
 using VTech.AsyncRefactoring.Base.CodeGraph.Nodes;
 using VTech.AsyncRefactoring.Base.MethodSelector;
@@ -7,12 +8,12 @@ namespace VTech.AsyncRefactoring.Base;
 
 public sealed class AsyncronizationProcessor
 {
-    private readonly string _solutionPath;
     private SolutionNode _node;
+    private readonly Func<Task<SolutionNode>> _solutionNodeFactory;
 
     static AsyncronizationProcessor()
     {
-        if (MSBuildLocator.IsRegistered)
+        if (MSBuildLocator.IsRegistered || !MSBuildLocator.CanRegister)
         {
             return;
         }
@@ -22,12 +23,17 @@ public sealed class AsyncronizationProcessor
 
     public AsyncronizationProcessor(string solutionPath)
     {
-        _solutionPath = solutionPath;
+        _solutionNodeFactory = () => SolutionNode.CreateAsync(solutionPath);
+    }
+
+    public AsyncronizationProcessor(Solution solution)
+    {
+        _solutionNodeFactory = () => SolutionNode.CreateAsync(solution);
     }
 
     public async Task InitializeCodeMapAsync()
     {
-        _node = await SolutionNode.CreateAsync(_solutionPath);
+        _node = await _solutionNodeFactory();
     }
 
     public List<VTech.AsyncRefactoring.Base.Changes.ProjectChanges> CollectSuggestedChanges(IMethodSelector methodSelector)
