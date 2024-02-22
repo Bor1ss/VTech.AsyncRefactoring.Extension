@@ -3,6 +3,7 @@ using Microsoft.CodeAnalysis;
 
 using VTech.AsyncRefactoring.Base.CodeGraph.Nodes;
 using VTech.AsyncRefactoring.Base.MethodSelector;
+using VTech.AsyncRefactoring.Base.Utils;
 
 namespace VTech.AsyncRefactoring.Base;
 
@@ -72,10 +73,12 @@ public sealed class AsyncronizationProcessor
             }
         }
 
-        _node.Print();
-
-
         return projectChanges;
+    }
+
+    public void VisualizeGraph(ICodeGraphVisualizer codeGraphVisualizer)
+    {
+        codeGraphVisualizer.Visualize(_node);
     }
 
     public async Task ApplyChangesAsync(List<VTech.AsyncRefactoring.Base.Changes.ProjectChanges> changes)

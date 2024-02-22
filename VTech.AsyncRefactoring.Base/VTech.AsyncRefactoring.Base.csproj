@@ -153,6 +153,7 @@
     <Compile Include="Rules\IRule.cs" />
     <Compile Include="Rules\ResultRule.cs" />
     <Compile Include="Rules\WaitRule.cs" />
+    <Compile Include="Utils\ICodeGraphVisualizer.cs" />
     <Compile Include="Utils\SymbolExtensions.cs" />
     <Compile Include="_globalUsings.cs" />
   </ItemGroup>

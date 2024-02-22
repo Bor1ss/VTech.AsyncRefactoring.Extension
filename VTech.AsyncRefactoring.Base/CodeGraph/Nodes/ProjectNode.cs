@@ -71,17 +71,7 @@ public class ProjectNode
         return (compilation, docs);
     }
 
-    internal string Id => _project.Name;
-    internal IReadOnlyList<DocumentNode> Documents => _documents;
+    public string Id => _project.Name;
+    public IReadOnlyList<DocumentNode> Documents => _documents;
     internal Compilation Compilation => _compilation;
-
-    public void Print()
-    {
-        Console.WriteLine($"- {_project.Name}");
-
-        foreach (var doc in _documents)
-        {
-            doc.Print();
-        }
-    }
 }

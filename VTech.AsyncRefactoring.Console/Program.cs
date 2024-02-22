@@ -2,6 +2,7 @@
 
 using VTech.AsyncRefactoring.Base;
 using VTech.AsyncRefactoring.Base.MethodSelector;
+using VTech.AsyncRefactoring.Console.Utils;
 
 namespace VTech.AsyncRefactoring.Console
 {
@@ -20,6 +21,7 @@ namespace VTech.AsyncRefactoring.Console
             AsyncronizationProcessor asyncronizationProcessor = new(path);
             await asyncronizationProcessor.InitializeCodeMapAsync();
             var changes = asyncronizationProcessor.CollectSuggestedChanges(new AllMethodSelector());
+            asyncronizationProcessor.VisualizeGraph(new CodeGraphVisualizer());
             await asyncronizationProcessor.ApplyChangesAsync(changes);
             System.Console.ReadKey();
         }

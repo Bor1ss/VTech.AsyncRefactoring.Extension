@@ -42,8 +42,8 @@ public class DocumentNode
         return document;
     }
 
-    internal string Id => _document.Name;
-    internal IReadOnlyList<BaseTypeDeclarationNode> TypeDeclarationNodes => _typeDeclarations;
+    public string Id => _document.Name;
+    public IReadOnlyList<BaseTypeDeclarationNode> TypeDeclarationNodes => _typeDeclarations;
     internal ProjectNode Parent => _parent;
     internal SemanticModel SemanticModel => _semanticModel;
     internal SyntaxTree Tree => _tree;
@@ -55,15 +55,6 @@ public class DocumentNode
     public void AddTypeDeclaration(BaseTypeDeclarationNode declaration)
     {
         _typeDeclarations.Add(declaration);
-    }
-
-    internal void Print()
-    {
-        Console.WriteLine($"|-|-> {_document.Name}");
-        foreach (var @class in _typeDeclarations)
-        {
-            @class.Print();
-        }
     }
 
     private readonly Dictionary<SyntaxNode, SyntaxNode> _nodeReplacements = [];

@@ -50,13 +50,15 @@ public class MethodNode
         _methodDeclaration = new MethodDeclarationSyntaxWrapper(node);
     }
 
+    public string Id => _method.Name;
     private MethodSignature Signature { get; }
     internal IMethodSymbol Symbol => _method;
     public bool IsTaskReturned => _method.ReturnType.IsTaskType();
     public bool IsAsyncNeeded { get; private set; }
     public bool IsAsynchronized { get; private set; }
-    public bool IsAsynchronizedCalls { get; private set; }
     public int Depth { get; private set; } = 0;
+    public IReadOnlyList<MethodNode> InternalMethods => _internalMethods;
+
 
     public List<MethodNode> GetRelatedMethods()
     {
@@ -86,7 +88,7 @@ public class MethodNode
     {
         _invocations.Add(invocationSymbol);
     }
-    private void AddOverider(MethodNode method)
+    private void AddOverrider(MethodNode method)
     {
         _overridedByMethods.Add(method);
     }
@@ -100,7 +102,7 @@ public class MethodNode
         if (_method.OverriddenMethod is not null)
         {
             _overidedMethod = symbolMethodMap[_method.OverriddenMethod];
-            _overidedMethod?.AddOverider(this);
+            _overidedMethod?.AddOverrider(this);
         }
         else
         {
@@ -130,25 +132,6 @@ public class MethodNode
     private void AddInvoker(MethodNode method)
     {
         _invokedByMethods.Add(method);
-    }
-
-    internal void Print(string printPref)
-    {
-        var prevColor = Console.ForegroundColor;
-
-        if (IsAsyncNeeded)
-        {
-            Console.ForegroundColor = ConsoleColor.Red;
-        }
-
-        Console.WriteLine($"{printPref} {_method.Name}");
-
-        Console.ForegroundColor = prevColor;
-
-        foreach (var invokedMethod in _invokedMethods)
-        {
-            Console.WriteLine($"|-{printPref} {invokedMethod.Symbol.GetFullyQualifiedName()}");
-        }
     }
 
     internal void DetectIssues(IReadOnlyList<IRule> rules)
@@ -228,9 +211,11 @@ public class MethodNode
         }
     }
 
+    public bool NeedsAsynchronization => IsAsyncNeeded || _detectedIssues.Count > 0 || _methodInvocationAsynchronizationNeeded.Count > 0;
+
     internal void AsynchronizeMethod()
     {
-        if (!IsAsyncNeeded && _detectedIssues.Count == 0 && _methodInvocationAsynchronizationNeeded.Count == 0 || IsAsynchronized)
+        if (!NeedsAsynchronization || IsAsynchronized)
         {
             return;
         }

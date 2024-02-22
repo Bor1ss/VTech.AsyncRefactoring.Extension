@@ -116,14 +116,6 @@ public class SolutionNode
         .SelectMany(x => x.Documents)
         .SelectMany(x => x.TypeDeclarationNodes);
 
-    public void Print()
-    {
-        foreach (var project in _projects)
-        {
-            project.Print();
-        }
-    }
-
     internal void DetectIssues(IMethodSelector methodSelector)
     {
         List<IRule> rules =

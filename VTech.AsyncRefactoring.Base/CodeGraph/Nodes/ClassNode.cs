@@ -32,7 +32,8 @@ public abstract class BaseTypeDeclarationNode
         }
     }
 
-    internal IReadOnlyList<MethodNode> Methods => _methods;
+    public string Id => _symbol.Name;
+    public IReadOnlyList<MethodNode> Methods => _methods;
     internal IReadOnlyList<BaseTypeDeclarationNode> Bases => _inherits;
 
     internal ISymbol Symbol => _symbol;
@@ -41,15 +42,6 @@ public abstract class BaseTypeDeclarationNode
     public void AddMethod(MethodNode method)
     {
         _methods.Add(method);
-    }
-
-    internal void Print()
-    {
-        Console.WriteLine($"|-|-|-> {_symbol.Name}");
-        foreach (var method in _methods)
-        {
-            method.Print("|-|-|-|->");
-        }
     }
 
     internal void CompleteReferences(Dictionary<ISymbol, BaseTypeDeclarationNode> typeSymbolMap)
