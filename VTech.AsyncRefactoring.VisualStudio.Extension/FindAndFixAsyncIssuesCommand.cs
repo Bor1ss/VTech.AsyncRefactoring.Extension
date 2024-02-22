@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.ComponentModel.Design;
 
 using EnvDTE;
@@ -92,11 +93,16 @@ internal sealed class FindAndFixAsyncIssuesCommand
             AsyncronizationProcessor asyncronizationProcessor = new(_visualStudioWorkspace.CurrentSolution);
             await asyncronizationProcessor.InitializeCodeMapAsync();
 
-            var changes = asyncronizationProcessor.CollectSuggestedChanges(methodSelector);
+            List<Base.Changes.ProjectChanges> changes = asyncronizationProcessor.CollectSuggestedChanges(methodSelector);
 
             //dialog for selection
+            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync(_package.DisposalToken);
 
-            await asyncronizationProcessor.ApplyChangesAsync(changes);
+            ChangesPreviewDialog dialog = new(changes);
+            dialog.ShowDialog();
+            List<Base.Changes.ProjectChanges> selectedChanges = dialog.Context.GetSelectedChanges();
+
+            await asyncronizationProcessor.ApplyChangesAsync(selectedChanges);
         }
         catch (Exception ex)
         {
@@ -104,7 +110,7 @@ internal sealed class FindAndFixAsyncIssuesCommand
             msg = ex.Message;
         }
 
-        await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync(_package.DisposalToken);
+        
 
         VsShellUtilities.ShowMessageBox(
             _package,
