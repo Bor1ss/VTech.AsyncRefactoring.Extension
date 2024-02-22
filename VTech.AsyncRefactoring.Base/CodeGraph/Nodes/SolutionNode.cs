@@ -5,13 +5,11 @@ namespace VTech.AsyncRefactoring.Base.CodeGraph.Nodes;
 
 public class SolutionNode
 {
-    private readonly MSBuildWorkspace _workspace;
-    private Solution _solution;
+    private readonly Solution _solution;
     private readonly List<ProjectNode> _projects = [];
 
-    private SolutionNode(MSBuildWorkspace workspace, Solution solution)
+    private SolutionNode(Solution solution)
     {
-        _workspace = workspace;
         _solution = solution;
     }
 
@@ -70,12 +68,12 @@ public class SolutionNode
 
     public async static Task<SolutionNode> CreateAsync(string path)
     {
-        var workspace = MSBuildWorkspace.Create();
+        MSBuildWorkspace workspace = MSBuildWorkspace.Create();
         workspace.WorkspaceFailed += (sender, e) => Console.WriteLine($"[failed] {e.Diagnostic}");
 
-        var msSolution = await workspace.OpenSolutionAsync(path);
+        Solution msSolution = await workspace.OpenSolutionAsync(path);
 
-        var solution = new SolutionNode(workspace, msSolution);
+        SolutionNode solution = new(msSolution);
         await solution.InitProjectsAsync();
 
         solution.CompleteReferences();
