@@ -1,22 +1,21 @@
 ﻿using System;
 using System.ComponentModel.Design;
-using System.Globalization;
-using System.Threading;
-using System.Threading.Tasks;
 
-using Microsoft.VisualStudio.Shell;
-using Microsoft.VisualStudio.Shell.Interop;
 using EnvDTE;
+
 using EnvDTE80;
 
-using Task = System.Threading.Tasks.Task;
+using Microsoft.VisualStudio.ComponentModelHost;
+using Microsoft.VisualStudio.LanguageServices;
+using Microsoft.VisualStudio.Shell;
+using Microsoft.VisualStudio.Shell.Interop;
+
 using VTech.AsyncRefactoring.Base;
 using VTech.AsyncRefactoring.Base.MethodSelector;
-using Microsoft.VisualStudio.LanguageServices;
-using Microsoft.VisualStudio.ComponentModelHost;
+
+using Task = System.Threading.Tasks.Task;
 
 namespace VTech.AsyncRefactoring.VisualStudio.Extension;
-
 
 internal sealed class FindAndFixAsyncIssuesCommand
 {
@@ -26,7 +25,6 @@ internal sealed class FindAndFixAsyncIssuesCommand
 
     private readonly AsyncPackage _package;
     private readonly VisualStudioWorkspace _visualStudioWorkspace;
-
 
     private FindAndFixAsyncIssuesCommand(AsyncPackage package, OleMenuCommandService commandService, VisualStudioWorkspace visualStudioWorkspace)
     {
@@ -45,8 +43,7 @@ internal sealed class FindAndFixAsyncIssuesCommand
 
     public static async Task InitializeAsync(AsyncPackage package)
     {
-        // Switch to the main thread - the call to AddCommand in FindAndFixAsyncIssuesCommand's constructor requires
-        // the UI thread.
+        // Switch to the main thread - the call to AddCommand in FindAndFixAsyncIssuesCommand's constructor requires the UI thread.
         await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync(package.DisposalToken);
 
         OleMenuCommandService commandService = await package.GetServiceAsync(typeof(IMenuCommandService)) as OleMenuCommandService;
@@ -57,15 +54,6 @@ internal sealed class FindAndFixAsyncIssuesCommand
         Instance = new FindAndFixAsyncIssuesCommand(package, commandService, visualStudioWorkspace);
     }
 
-
-
-    /// <summary>
-    /// This function is the callback used to execute the command when the menu item is clicked.
-    /// See the constructor to see how the menu item is associated with this function using
-    /// OleMenuCommandService service and MenuCommand class.
-    /// </summary>
-    /// <param name="sender">Event sender.</param>
-    /// <param name="e">Event args.</param>
     private void Execute(object sender, EventArgs e)
     {
         ThreadHelper.ThrowIfNotOnUIThread();
@@ -119,7 +107,7 @@ internal sealed class FindAndFixAsyncIssuesCommand
         await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync(_package.DisposalToken);
 
         VsShellUtilities.ShowMessageBox(
-            this._package,
+            _package,
             msg,
             title,
             OLEMSGICON.OLEMSGICON_INFO,
