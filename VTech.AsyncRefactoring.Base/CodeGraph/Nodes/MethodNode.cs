@@ -498,17 +498,17 @@ public class MethodNode
             return new LocalMethodDeclarationSyntaxWrapper(newLocalMethodDeclaration);
         }
     }
-}
 
-internal class DetectedIssue
-{
-    public DetectedIssue(IRule Rule, List<SyntaxNode> Nodes)
+    class DetectedIssue
     {
-        this.Rule = Rule;
-        this.Nodes = Nodes;
-    }
+        public DetectedIssue(IRule Rule, List<SyntaxNode> Nodes)
+        {
+            this.Rule = Rule;
+            this.Nodes = Nodes;
+        }
 
-    public IRule Rule { get; }
-    public List<SyntaxNode> Nodes { get; }
+        public IRule Rule { get; }
+        public List<SyntaxNode> Nodes { get; }
+    }
 }
 
