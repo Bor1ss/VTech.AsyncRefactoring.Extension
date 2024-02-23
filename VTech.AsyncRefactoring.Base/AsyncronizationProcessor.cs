@@ -3,6 +3,7 @@ using Microsoft.CodeAnalysis;
 
 using VTech.AsyncRefactoring.Base.CodeGraph.Nodes;
 using VTech.AsyncRefactoring.Base.MethodSelector;
+using VTech.AsyncRefactoring.Base.Rules;
 using VTech.AsyncRefactoring.Base.Utils;
 
 namespace VTech.AsyncRefactoring.Base;
@@ -37,10 +38,36 @@ public sealed class AsyncronizationProcessor
         _node = await _solutionNodeFactory();
     }
 
+    private void DetectIssues(List<MethodNode> processableMethods)
+    {
+        List<IRule> rules =
+        [
+            new WaitRule(),
+            new GetAwaiterGetResultRule(),
+            new ResultRule(),
+        ];
+
+        foreach (var method in processableMethods)
+        {
+            method.DetectIssues(rules);
+        }
+    }
+
+
+    internal void PrepareFixes(List<MethodNode> processableMethods)
+    {
+        foreach (var method in processableMethods.OrderByDescending(x => x.Depth))
+        {
+            method.AsynchronizeMethod();
+        }
+    }
+
     public List<VTech.AsyncRefactoring.Base.Changes.ProjectChanges> CollectSuggestedChanges(IMethodSelector methodSelector)
     {
-        _node.DetectIssues(methodSelector);
-        _node.PrepareFixes();
+        List<MethodNode> processableMethods = methodSelector.Select(_node).ToList();
+
+        DetectIssues(processableMethods);
+        PrepareFixes(processableMethods);
 
         List<VTech.AsyncRefactoring.Base.Changes.ProjectChanges> projectChanges = new(_node.Projects.Count);
 

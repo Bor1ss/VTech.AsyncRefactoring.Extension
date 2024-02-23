@@ -89,19 +89,8 @@ public class RecordNode : BaseTypeDeclarationNode
 
 }
 
-[Flags]
-public enum ClassAttribute
-{
-    None = 0,
-    Abstract = 1,
-    Sealed = 2,
-    Partial = 4
-}
-
 public class ClassNode : BaseTypeDeclarationNode
 {
-    private ClassAttribute _attributes = ClassAttribute.None;
-
     public ClassNode(ISymbol @class, ClassDeclarationSyntax classDeclaration, DocumentNode parent)
         : base(@class, classDeclaration, parent)
     {

@@ -1,7 +1,5 @@
 ﻿using Microsoft.CodeAnalysis.Text;
 
-using VTech.AsyncRefactoring.Base.Utils;
-
 namespace VTech.AsyncRefactoring.Base.CodeGraph.Nodes;
 
 public class DocumentNode
@@ -13,7 +11,7 @@ public class DocumentNode
     private readonly List<BaseTypeDeclarationNode> _typeDeclarations = [];
     private readonly SemanticModel _semanticModel;
 
-    private DocumentNode(ProjectNode parent, Document document, SemanticModel? model, SyntaxTree syntaxTree, SyntaxNode syntaxRoot)
+    private DocumentNode(ProjectNode parent, Document document, SemanticModel model, SyntaxTree syntaxTree, SyntaxNode syntaxRoot)
     {
         _parent = parent;
         _document = document;
@@ -34,11 +32,10 @@ public class DocumentNode
 
     public static async Task<DocumentNode> CreateAsync(ProjectNode parent, Document msDocument, SyntaxTree tree)
     {
-        var syntaxTree = tree;
-        var syntaxRoot = await syntaxTree.GetRootAsync();
-        SemanticModel semanticModel = parent.Compilation.GetSemanticModel(syntaxTree);
-        var document = new DocumentNode(parent, msDocument, semanticModel, syntaxTree, syntaxRoot);
-        //await document.InitMethodsAsync();
+        SyntaxNode syntaxRoot = await tree.GetRootAsync();
+        SemanticModel semanticModel = parent.Compilation.GetSemanticModel(tree);
+        DocumentNode document = new(parent, msDocument, semanticModel, tree, syntaxRoot);
+        
         return document;
     }
 
@@ -78,7 +75,7 @@ public class DocumentNode
 
     public List<TextChange> GetDiffs()
     {
-        if (_nodeReplacements.Count == 0 && _tokenReplacements.Count == 0 && _triviaReplacements.Count == 0)
+        if (!HasChangesPrepared)
         {
             return [];
         }
@@ -95,7 +92,7 @@ public class DocumentNode
 
     public async Task SaveAsync()
     {
-        if(_nodeReplacements.Count == 0 && _tokenReplacements.Count == 0 && _triviaReplacements.Count == 0)
+        if(!HasChangesPrepared)
         {
             return;
         }

@@ -1,9 +1,4 @@
-﻿using Microsoft.CodeAnalysis;
-
-using VTech.AsyncRefactoring.Base.MethodSelector;
-using VTech.AsyncRefactoring.Base.Rules;
-
-namespace VTech.AsyncRefactoring.Base.CodeGraph.Nodes;
+﻿namespace VTech.AsyncRefactoring.Base.CodeGraph.Nodes;
 
 public class SolutionNode
 {
@@ -27,14 +22,13 @@ public class SolutionNode
             .Select(x => x!)
         .ToList();
 
-
         List<SyntaxTree> syntaxTrees = [];
         List<(Project project, List<(Document doc, SyntaxTree tree)> docs)> projDocs = [];
 
-        foreach (var msProject in projects)
+        foreach (Project msProject in projects)
         {
             List<(Document doc, SyntaxTree tree)> docs = [];
-            foreach (var doc in msProject.Documents)
+            foreach (Document doc in msProject.Documents)
             {
                 var syntaxTree = await doc.GetSyntaxTreeAsync();
 
@@ -90,52 +84,28 @@ public class SolutionNode
 
     private void CompleteReferences()
     {
-        Dictionary<ISymbol, BaseTypeDeclarationNode> typeSymbolMap = AllTypes
+        List<BaseTypeDeclarationNode> allTypes = _projects
+            .SelectMany(x => x.Documents)
+            .SelectMany(x => x.TypeDeclarationNodes)
+            .ToList();
+
+        Dictionary<ISymbol, BaseTypeDeclarationNode> typeSymbolMap = allTypes
             .ToDictionary(x => x.Symbol, x => x, SymbolEqualityComparer.Default);
 
-        foreach(var typeSymbol in AllTypes)
+        foreach (var typeSymbol in allTypes)
         {
             typeSymbol.CompleteReferences(typeSymbolMap);
         }
 
-        Dictionary<ISymbol, MethodNode> symbolMethodMap = AllMethods
-               .ToDictionary(x => x.Symbol, x => x, SymbolEqualityComparer.Default);
+        Dictionary<ISymbol, MethodNode> symbolMethodMap = allTypes
+            .SelectMany(x => x.Methods)
+            .ToDictionary(x => x.Symbol, x => x, SymbolEqualityComparer.Default);
 
         SymbolInfoStorage.Instance.Fill(symbolMethodMap);
 
         foreach (var methodNode in symbolMethodMap.Values)
         {
             methodNode.CompleteReferences(symbolMethodMap);
-        }
-    }
-
-    private IEnumerable<MethodNode> AllMethods => AllTypes
-        .SelectMany(x => x.Methods);
-
-    private IEnumerable<BaseTypeDeclarationNode> AllTypes => _projects
-        .SelectMany(x => x.Documents)
-        .SelectMany(x => x.TypeDeclarationNodes);
-
-    internal void DetectIssues(IMethodSelector methodSelector)
-    {
-        List<IRule> rules =
-        [
-            new WaitRule(),
-            new GetAwaiterGetResultRule(),
-            new ResultRule(),
-        ];
-
-        foreach (var method in methodSelector.Select(this))
-        {
-            method.DetectIssues(rules);
-        }
-    }
-
-    internal void PrepareFixes()
-    {
-        foreach (var method in AllMethods.OrderByDescending(x => x.Depth))
-        {
-            method.AsynchronizeMethod();
         }
     }
 }

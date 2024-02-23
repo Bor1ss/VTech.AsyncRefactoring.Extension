@@ -29,46 +29,11 @@ public class ProjectNode
         }
     }
 
-    public static async Task<ProjectNode> CreateAsync(SolutionNode parent, Project msProject)
-    {
-        (Compilation compilation, List<(Document doc, SyntaxTree tree)> docs) = await GetCompilationAsync(msProject);
-        var project = new ProjectNode(parent, msProject, compilation);
-        await project.InitDocumentsAsync(docs);
-        return project;
-    }
-
     public static async Task<ProjectNode> CreateAsync(SolutionNode parent, Project msProject, Compilation compilation, List<(Document doc, SyntaxTree tree)> docs)
     {
         var project = new ProjectNode(parent, msProject, compilation);
         await project.InitDocumentsAsync(docs);
         return project;
-    }
-
-    private static async Task<(Compilation compilation, List<(Document doc, SyntaxTree tree)> docs)> GetCompilationAsync(Project msProject)
-    {
-        List<(Document doc, SyntaxTree tree)> docs = [];
-        List<SyntaxTree> syntaxTrees = [];
-
-        foreach (var doc in msProject.Documents)
-        {
-            var syntaxTree = await doc.GetSyntaxTreeAsync();
-
-            if(syntaxTree is null)
-            {
-                continue;
-            }
-
-            syntaxTrees.Add(syntaxTree);
-            docs.Add((doc, syntaxTree));
-        }
-
-        CSharpCompilation compilation = CSharpCompilation.Create("MyCompilation")
-            .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
-                           MetadataReference.CreateFromFile(typeof(Task).Assembly.Location),
-                           MetadataReference.CreateFromFile(typeof(Task<>).Assembly.Location))
-            .AddSyntaxTrees(syntaxTrees);
-
-        return (compilation, docs);
     }
 
     public string Id => _project.Name;
