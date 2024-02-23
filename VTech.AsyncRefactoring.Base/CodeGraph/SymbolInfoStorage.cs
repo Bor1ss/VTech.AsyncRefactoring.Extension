@@ -3,21 +3,19 @@
 namespace VTech.AsyncRefactoring.Base.CodeGraph;
 public class SymbolInfoStorage
 {
-    public static SymbolInfoStorage Instance { get; } = new();
-
     private readonly List<Item> _items = [];
 
     [System.Runtime.CompilerServices.IndexerName("Method")]
-    public MethodNode? this[ISymbol symbol] => _items.FirstOrDefault(x => SymbolEqualityComparer.Default.Equals(x.Symbol, symbol))?.Method;
+    public MethodNode this[ISymbol symbol] => _items.FirstOrDefault(x => SymbolEqualityComparer.Default.Equals(x.Symbol, symbol))?.Method;
 
     [System.Runtime.CompilerServices.IndexerName("Method")]
-    public MethodNode? this[InvocationExpressionSyntax invocation] => _items.FirstOrDefault(x => x.InvocationExpressions.Contains(invocation))?.Method;
+    public MethodNode this[InvocationExpressionSyntax invocation] => _items.FirstOrDefault(x => x.InvocationExpressions.Contains(invocation))?.Method;
 
     internal void Fill(Dictionary<ISymbol, MethodNode> symbolMethodMap)
     {
         foreach(var symbol in symbolMethodMap.Keys)
         {
-            Item? item = _items.FirstOrDefault(x => SymbolEqualityComparer.Default.Equals(x.Symbol, symbol));
+            Item item = _items.FirstOrDefault(x => SymbolEqualityComparer.Default.Equals(x.Symbol, symbol));
             if (item is null)
             {
                 continue;
@@ -29,7 +27,7 @@ public class SymbolInfoStorage
 
     internal void Set(InvocationExpressionSyntax invocation, ISymbol invocationSymbol)
     {
-        Item? item = _items.FirstOrDefault(x => SymbolEqualityComparer.Default.Equals(x.Symbol, invocationSymbol));
+        Item item = _items.FirstOrDefault(x => SymbolEqualityComparer.Default.Equals(x.Symbol, invocationSymbol));
 
         if (item is null)
         {

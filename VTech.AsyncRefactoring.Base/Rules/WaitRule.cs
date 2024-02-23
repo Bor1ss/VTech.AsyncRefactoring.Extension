@@ -1,11 +1,12 @@
-﻿using VTech.AsyncRefactoring.Base.CodeGraph.Nodes;
+﻿using VTech.AsyncRefactoring.Base.CodeGraph;
+using VTech.AsyncRefactoring.Base.CodeGraph.Nodes;
 
 namespace VTech.AsyncRefactoring.Base.Rules;
 
 internal class WaitRule : RuleBase
 {
-    public WaitRule()
-        : base(nameof(WaitRule))
+    public WaitRule(SymbolInfoStorage symbolInfoStorage)
+        : base(nameof(WaitRule), symbolInfoStorage)
     {
     }
 

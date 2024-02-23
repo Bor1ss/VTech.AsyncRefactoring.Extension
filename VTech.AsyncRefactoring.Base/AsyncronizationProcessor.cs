@@ -1,6 +1,7 @@
 ﻿using Microsoft.Build.Locator;
 using Microsoft.CodeAnalysis;
 
+using VTech.AsyncRefactoring.Base.CodeGraph;
 using VTech.AsyncRefactoring.Base.CodeGraph.Nodes;
 using VTech.AsyncRefactoring.Base.MethodSelector;
 using VTech.AsyncRefactoring.Base.Rules;
@@ -10,8 +11,10 @@ namespace VTech.AsyncRefactoring.Base;
 
 public sealed class AsyncronizationProcessor
 {
-    private SolutionNode _node;
+    private readonly SymbolInfoStorage _symbolInfoStorage;
     private readonly Func<Task<SolutionNode>> _solutionNodeFactory;
+    private readonly IReadOnlyList<IRule> _rulesSet;
+    private SolutionNode _node;
 
     static AsyncronizationProcessor()
     {
@@ -23,14 +26,24 @@ public sealed class AsyncronizationProcessor
         MSBuildLocator.RegisterDefaults();
     }
 
+    private AsyncronizationProcessor()
+    {
+        _symbolInfoStorage = new SymbolInfoStorage();
+        _rulesSet = [
+            new WaitRule(_symbolInfoStorage),
+            new GetAwaiterGetResultRule(_symbolInfoStorage),
+            new ResultRule(_symbolInfoStorage),
+        ];
+    }
+
     public AsyncronizationProcessor(string solutionPath)
     {
-        _solutionNodeFactory = () => SolutionNode.CreateAsync(solutionPath);
+        _solutionNodeFactory = () => SolutionNode.CreateAsync(solutionPath, _symbolInfoStorage);
     }
 
     public AsyncronizationProcessor(Solution solution)
     {
-        _solutionNodeFactory = () => SolutionNode.CreateAsync(solution);
+        _solutionNodeFactory = () => SolutionNode.CreateAsync(solution, _symbolInfoStorage);
     }
 
     public async Task InitializeCodeMapAsync()
@@ -40,25 +53,17 @@ public sealed class AsyncronizationProcessor
 
     private void DetectIssues(List<MethodNode> processableMethods)
     {
-        List<IRule> rules =
-        [
-            new WaitRule(),
-            new GetAwaiterGetResultRule(),
-            new ResultRule(),
-        ];
-
         foreach (var method in processableMethods)
         {
-            method.DetectIssues(rules);
+            method.DetectIssues(_rulesSet);
         }
     }
 
-
-    internal void PrepareFixes(List<MethodNode> processableMethods)
+    private void PrepareFixes(List<MethodNode> processableMethods)
     {
         foreach (var method in processableMethods.OrderByDescending(x => x.Depth))
         {
-            method.AsynchronizeMethod();
+            method.PrepareFixes(_symbolInfoStorage);
         }
     }
 
@@ -119,7 +124,5 @@ public sealed class AsyncronizationProcessor
                 document.ApplyChanges(documentChanges.TextChanges);
             }
         }
-
-        Console.WriteLine("Done");
     }
 }

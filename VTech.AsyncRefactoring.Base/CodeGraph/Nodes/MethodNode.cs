@@ -59,7 +59,6 @@ public class MethodNode
     public int Depth { get; private set; } = 0;
     public IReadOnlyList<MethodNode> InternalMethods => _internalMethods;
 
-
     public List<MethodNode> GetRelatedMethods()
     {
         List<MethodNode> relatedMethods =
@@ -213,7 +212,7 @@ public class MethodNode
 
     public bool NeedsAsynchronization => IsAsyncNeeded || _detectedIssues.Count > 0 || _methodInvocationAsynchronizationNeeded.Count > 0;
 
-    internal void AsynchronizeMethod()
+    internal void PrepareFixes(SymbolInfoStorage symbolInfoStorage)
     {
         if (!NeedsAsynchronization || IsAsynchronized)
         {
@@ -278,7 +277,7 @@ public class MethodNode
 
             foreach (var invocation in methodInvocations)
             {
-                var method = SymbolInfoStorage.Instance[invocation];
+                MethodNode method = symbolInfoStorage[invocation];
 
                 if (method is null)
                 {
@@ -405,6 +404,15 @@ public class MethodNode
                 && otherSignature.ReturnType.Equals(ReturnType, SymbolEqualityComparer.IncludeNullability)
                 && otherSignature.Params.Length == Params.Length
                 && otherSignature.Params.All(x => Params.FirstOrDefault(p => p.Equals(x, SymbolEqualityComparer.IncludeNullability)) is not null);
+        }
+
+        public override int GetHashCode()
+        {
+            int hashCode = -1312838752;
+            hashCode = hashCode * -1521134295 + EqualityComparer<ITypeSymbol>.Default.GetHashCode(ReturnType);
+            hashCode = hashCode * -1521134295 + EqualityComparer<string>.Default.GetHashCode(Name);
+            hashCode = hashCode * -1521134295 + Params.GetHashCode();
+            return hashCode;
         }
     }
 

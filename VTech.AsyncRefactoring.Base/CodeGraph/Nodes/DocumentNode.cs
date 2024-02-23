@@ -7,7 +7,7 @@ public class DocumentNode
     private readonly ProjectNode _parent;
     private readonly Document _document;
     private readonly SyntaxTree _tree;
-    private SyntaxNode _root;
+    private readonly SyntaxNode _root;
     private readonly List<BaseTypeDeclarationNode> _typeDeclarations = [];
     private readonly SemanticModel _semanticModel;
 
@@ -15,17 +15,25 @@ public class DocumentNode
     {
         _parent = parent;
         _document = document;
-        _semanticModel = model!;
+        _semanticModel = model;
         _tree = syntaxTree;
         _root = syntaxRoot;
     }
 
-    public async Task InitMethodsAsync(List<SemanticModel> allSemanticModels)
+    public async Task InitMethodsAsync(List<SemanticModel> allSemanticModels, SymbolInfoStorage symbolInfoStorage)
     {
         await Task.Yield();
 
-        var options = new GraphBuilderOptions { MsDocument = _document, Model = _semanticModel, Document = this, AllSemanticModels = allSemanticModels };
-        var graphBuilder = new GraphBuilder(options);
+        GraphBuilderOptions options = new()  
+        { 
+            MsDocument = _document, 
+            Model = _semanticModel, 
+            Document = this, 
+            AllSemanticModels = allSemanticModels,
+            SymbolInfoStorage = symbolInfoStorage
+        };
+
+        GraphBuilder graphBuilder = new(options);
 
         graphBuilder.Visit(_root);
     }
@@ -97,12 +105,12 @@ public class DocumentNode
             return;
         }
 
-        _root = _root.ReplaceSyntax(
+        SyntaxNode changedRoot = _root.ReplaceSyntax(
             _nodeReplacements.Keys, (a, _) => _nodeReplacements[a],
             _tokenReplacements.Keys, (a, _) => _tokenReplacements[a],
             _triviaReplacements.Keys, (a, _) => _triviaReplacements[a]);
 
-        var text = _root.GetText();
+        var text = changedRoot.GetText();
 
         await Task.Run(() => System.IO.File.WriteAllText(_document.FilePath, text.ToString()));
     }

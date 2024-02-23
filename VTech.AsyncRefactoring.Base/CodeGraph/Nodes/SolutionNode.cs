@@ -12,7 +12,7 @@ public class SolutionNode
 
     public IReadOnlyCollection<ProjectNode> Projects => _projects;
 
-    private async Task InitProjectsAsync()
+    private async Task InitProjectsAsync(SymbolInfoStorage symbolInfoStorage)
     {
         ProjectDependencyGraph graph = _solution.GetProjectDependencyGraph();
         List<Project> projects = graph
@@ -58,31 +58,31 @@ public class SolutionNode
 
         foreach (DocumentNode document in allDocuments)
         {
-            await document.InitMethodsAsync(allSemanticModels);
+            await document.InitMethodsAsync(allSemanticModels, symbolInfoStorage);
         }
     }
 
-    public async static Task<SolutionNode> CreateAsync(string path)
+    public async static Task<SolutionNode> CreateAsync(string path, SymbolInfoStorage symbolInfoStorage)
     {
         MSBuildWorkspace workspace = MSBuildWorkspace.Create();
         workspace.WorkspaceFailed += (sender, e) => Console.WriteLine($"[failed] {e.Diagnostic}");
 
         Solution msSolution = await workspace.OpenSolutionAsync(path);
 
-        return await CreateAsync(msSolution);
+        return await CreateAsync(msSolution, symbolInfoStorage);
     }
 
-    public async static Task<SolutionNode> CreateAsync(Solution msSolution)
+    public async static Task<SolutionNode> CreateAsync(Solution msSolution, SymbolInfoStorage symbolInfoStorage)
     {
         SolutionNode solution = new(msSolution);
-        await solution.InitProjectsAsync();
+        await solution.InitProjectsAsync(symbolInfoStorage);
 
-        solution.CompleteReferences();
+        solution.CompleteReferences(symbolInfoStorage);
 
         return solution;
     }
 
-    private void CompleteReferences()
+    private void CompleteReferences(SymbolInfoStorage symbolInfoStorage)
     {
         List<BaseTypeDeclarationNode> allTypes = _projects
             .SelectMany(x => x.Documents)
@@ -101,7 +101,7 @@ public class SolutionNode
             .SelectMany(x => x.Methods)
             .ToDictionary(x => x.Symbol, x => x, SymbolEqualityComparer.Default);
 
-        SymbolInfoStorage.Instance.Fill(symbolMethodMap);
+        symbolInfoStorage.Fill(symbolMethodMap);
 
         foreach (var methodNode in symbolMethodMap.Values)
         {

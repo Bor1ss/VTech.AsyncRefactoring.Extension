@@ -6,7 +6,6 @@ public class ProjectNode
     private readonly SolutionNode _parent;
     private readonly Project _project;
     private readonly Compilation _compilation;
-
     private readonly List<DocumentNode> _documents = [];
 
     private ProjectNode(SolutionNode parent, Project project, Compilation compilation)

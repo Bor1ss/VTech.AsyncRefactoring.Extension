@@ -1,10 +1,11 @@
-﻿using VTech.AsyncRefactoring.Base.CodeGraph.Nodes;
+﻿using VTech.AsyncRefactoring.Base.CodeGraph;
+using VTech.AsyncRefactoring.Base.CodeGraph.Nodes;
 
 namespace VTech.AsyncRefactoring.Base.Rules;
 internal class ResultRule : RuleBase
 {
-    public ResultRule()
-        : base(nameof(ResultRule))
+    public ResultRule(SymbolInfoStorage symbolInfoStorage)
+        : base(nameof(ResultRule), symbolInfoStorage)
     {
     }
 

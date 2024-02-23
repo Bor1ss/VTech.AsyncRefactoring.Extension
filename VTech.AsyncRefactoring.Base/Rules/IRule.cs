@@ -26,13 +26,14 @@ internal abstract class RuleBase : IRule
 {
     private readonly List<SyntaxNode> _expressions = [];
     private readonly Func<BaseTypeDeclarationNode, IMethodSymbol, SyntaxNode, bool>[] _expressionCheckers;
-
+    private readonly SymbolInfoStorage _symbolInfoStorage;
     private ExpressionProcessingResult _lastActionResult = ExpressionProcessingResult.Undefined;
     private int _processingIndex = 0;
 
-    protected RuleBase(string name)
+    protected RuleBase(string name, SymbolInfoStorage symbolInfoStorage)
     {
         Name = name;
+        _symbolInfoStorage = symbolInfoStorage;
         _expressionCheckers = GetExpressionCheckers();
     }
 
@@ -116,11 +117,9 @@ internal abstract class RuleBase : IRule
 
     protected bool IsNodeOfTaskType(BaseTypeDeclarationNode parent, IMethodSymbol methodSymbol, SyntaxNode node)
     {
-
-
         if (node is InvocationExpressionSyntax ies)
         {
-            MethodNode method = SymbolInfoStorage.Instance[ies];
+            MethodNode method = _symbolInfoStorage[ies];
 
             if (method is not null)
             {

@@ -8,21 +8,21 @@ namespace VTech.AsyncRefactoring;
 
 public sealed class GraphBuilder : CSharpSyntaxWalker
 {
-    private readonly GraphBuilderOptions options;
+    private readonly GraphBuilderOptions _options;
 
-    private BaseTypeDeclarationNode? _baseNode;
-    private MethodNode? _parentMethod;
+    private BaseTypeDeclarationNode _baseNode;
+    private MethodNode _parentMethod;
 
     public GraphBuilder(GraphBuilderOptions options)
     {
-        this.options = options;
+        _options = options;
     }
 
     public override void VisitClassDeclaration(ClassDeclarationSyntax node)
     {
         var symbol = GetSymbol(node);
-        _baseNode = new ClassNode(symbol, node, options.Document);
-        options.Document.AddTypeDeclaration(_baseNode);
+        _baseNode = new ClassNode(symbol, node, _options.Document);
+        _options.Document.AddTypeDeclaration(_baseNode);
 
         base.VisitClassDeclaration(node);
     }
@@ -30,8 +30,8 @@ public sealed class GraphBuilder : CSharpSyntaxWalker
     public override void VisitInterfaceDeclaration(InterfaceDeclarationSyntax node)
     {
         var symbol = GetSymbol(node);
-        _baseNode = new InterfaceNode(symbol, node, options.Document);
-        options.Document.AddTypeDeclaration(_baseNode);
+        _baseNode = new InterfaceNode(symbol, node, _options.Document);
+        _options.Document.AddTypeDeclaration(_baseNode);
 
         base.VisitInterfaceDeclaration(node);
     }
@@ -39,8 +39,8 @@ public sealed class GraphBuilder : CSharpSyntaxWalker
     public override void VisitStructDeclaration(StructDeclarationSyntax node)
     {
         var symbol = GetSymbol(node);
-        _baseNode = new StructNode(symbol, node, options.Document);
-        options.Document.AddTypeDeclaration(_baseNode);
+        _baseNode = new StructNode(symbol, node, _options.Document);
+        _options.Document.AddTypeDeclaration(_baseNode);
 
         base.VisitStructDeclaration(node);
     }
@@ -48,8 +48,8 @@ public sealed class GraphBuilder : CSharpSyntaxWalker
     public override void VisitRecordDeclaration(RecordDeclarationSyntax node)
     {
         var symbol = GetSymbol(node);
-        _baseNode = new RecordNode(symbol, node, options.Document);
-        options.Document.AddTypeDeclaration(_baseNode);
+        _baseNode = new RecordNode(symbol, node, _options.Document);
+        _options.Document.AddTypeDeclaration(_baseNode);
 
         base.VisitRecordDeclaration(node);
     }
@@ -73,7 +73,7 @@ public sealed class GraphBuilder : CSharpSyntaxWalker
 
             method.AddInvocation(invocationSymbol);
 
-            SymbolInfoStorage.Instance.Set(invocation, invocationSymbol);
+            _options.SymbolInfoStorage.Set(invocation, invocationSymbol);
 
             /*
               //todo: callers to the method
@@ -111,7 +111,7 @@ public sealed class GraphBuilder : CSharpSyntaxWalker
 
             method.AddInvocation(invocationSymbol);
 
-            SymbolInfoStorage.Instance.Set(invocation, invocationSymbol);
+            _options.SymbolInfoStorage.Set(invocation, invocationSymbol);
 
             /*
               //todo: callers to the method
@@ -142,11 +142,11 @@ public sealed class GraphBuilder : CSharpSyntaxWalker
 
     private ISymbol GetSymbol(SyntaxNode node)
     {
-        Func<SemanticModel, ISymbol?> symbolGetter = node.GetType().IsSubclassOf(typeof(MemberDeclarationSyntax)) || node.GetType() == typeof(VariableDeclaratorSyntax) || node.GetType() == typeof(LocalFunctionStatementSyntax)
+        Func<SemanticModel, ISymbol> symbolGetter = node.GetType().IsSubclassOf(typeof(MemberDeclarationSyntax)) || node.GetType() == typeof(VariableDeclaratorSyntax) || node.GetType() == typeof(LocalFunctionStatementSyntax)
             ? (m) => m.GetDeclaredSymbol(node)
             : (m) => m.GetSymbolInfo(node).Symbol;
 
-        foreach(var semanticModel in options.AllSemanticModels)
+        foreach(var semanticModel in _options.AllSemanticModels)
         {
             try
             {
@@ -167,7 +167,7 @@ public sealed class GraphBuilder : CSharpSyntaxWalker
 
     public override void VisitVariableDeclarator(VariableDeclaratorSyntax node)
     {
-        var t = options.Document.SemanticModel.GetTypeInfo(node.Initializer.Value);
+        var t = _options.Document.SemanticModel.GetTypeInfo(node.Initializer.Value);
         base.VisitVariableDeclarator(node);
     }
 }
