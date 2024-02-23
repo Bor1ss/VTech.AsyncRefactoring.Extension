@@ -55,7 +55,7 @@ public class ContextVM
                     TextChanges = []
                 };
 
-                foreach(var textChnage in  doc.TextChanges.Where(x => x.IsSelected))
+                foreach(var textChnage in doc.TextChanges.Where(x => x.IsSelected))
                 {
                     documentChanges.TextChanges.Add(textChnage.TextChange);
                 }
@@ -203,26 +203,23 @@ public class DocumentChangesViewModel : NotifiableBase
 
 public class TextChangeViewModel : NotifiableBase
 {
-    private readonly Microsoft.CodeAnalysis.Text.TextChange _textChange;
-    public TextChangeViewModel(Microsoft.CodeAnalysis.Text.TextChange textChange)
+    private readonly TextChange _textChange;
+    public TextChangeViewModel(TextChange textChange)
     {
         _textChange = textChange;
-        _oldText = textChange.Span.ToString();
-        _newText = textChange.NewText;
         _isSelected = true;
     }
 
-    public Microsoft.CodeAnalysis.Text.TextChange TextChange => _textChange;
+    public TextChange TextChange => _textChange;
 
-    private string _oldText;
     public string OldText
     {
-        get => _oldText;
+        get => _textChange.OldText;
         set
         {
-            if (_oldText != value)
+            if (_textChange.OldText != value)
             {
-                _oldText = value;
+                _textChange.OldText = value;
                 OnPropertyChanged();
             }
         }
@@ -242,15 +239,14 @@ public class TextChangeViewModel : NotifiableBase
         }
     }
 
-    private string _newText;
     public string NewText
     {
-        get => _newText;
+        get => _textChange.NewText;
         set
         {
-            if (_newText != value)
+            if (_textChange.NewText != value)
             {
-                _newText = value;
+                _textChange.NewText = value;
                 OnPropertyChanged();
             }
         }

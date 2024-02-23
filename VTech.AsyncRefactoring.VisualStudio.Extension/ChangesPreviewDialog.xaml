@@ -35,7 +35,7 @@
                         <TextBlock>Old text</TextBlock>
                         <TextBlock Text="{Binding OldText}"/>
                         <TextBlock>New text</TextBlock>
-                        <TextBlock Text="{Binding NewText}"/>
+                        <TextBox  Text="{Binding NewText}"/>
                     </StackPanel>
                 </DataTemplate>
             </ListView.ItemTemplate>

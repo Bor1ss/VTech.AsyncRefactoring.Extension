@@ -1,5 +1,4 @@
 ﻿using Microsoft.Build.Locator;
-using Microsoft.CodeAnalysis;
 
 using VTech.AsyncRefactoring.Base.CodeGraph;
 using VTech.AsyncRefactoring.Base.CodeGraph.Nodes;
@@ -37,11 +36,13 @@ public sealed class AsyncronizationProcessor
     }
 
     public AsyncronizationProcessor(string solutionPath)
+        : this()
     {
         _solutionNodeFactory = () => SolutionNode.CreateAsync(solutionPath, _symbolInfoStorage);
     }
 
     public AsyncronizationProcessor(Solution solution)
+        : this()
     {
         _solutionNodeFactory = () => SolutionNode.CreateAsync(solution, _symbolInfoStorage);
     }
@@ -76,7 +77,7 @@ public sealed class AsyncronizationProcessor
 
         List<VTech.AsyncRefactoring.Base.Changes.ProjectChanges> projectChanges = new(_node.Projects.Count);
 
-        foreach(ProjectNode project in _node.Projects)
+        foreach (ProjectNode project in _node.Projects)
         {
             VTech.AsyncRefactoring.Base.Changes.ProjectChanges curProjectChanges = new()
             {
@@ -85,21 +86,34 @@ public sealed class AsyncronizationProcessor
 
             foreach (DocumentNode document in project.Documents)
             {
-                if(!document.HasChangesPrepared)
-                { 
-                    continue; 
+                if (!document.HasChangesPrepared)
+                {
+                    continue;
                 }
 
                 VTech.AsyncRefactoring.Base.Changes.DocumentChanges curDocumentChanges = new()
                 {
                     Id = document.Id,
-                    TextChanges = document.GetDiffs()
+                    TextChanges = []
                 };
+
+                foreach (var change in document.GetDiffs())
+                {
+                    Changes.TextChange textChange = new()
+                    {
+                        NewText = change.NewText,
+                        OldSpanStart = change.Span.Start,
+                        OldSpanLength = change.Span.Length,
+                        OldText = document.Root.GetText().GetSubText(change.Span).ToString()
+                    };
+
+                    curDocumentChanges.TextChanges.Add(textChange);
+                }
 
                 curProjectChanges.Documents.Add(curDocumentChanges);
             }
 
-            if(curProjectChanges.Documents.Count > 0)
+            if (curProjectChanges.Documents.Count > 0)
             {
                 projectChanges.Add(curProjectChanges);
             }
@@ -115,13 +129,23 @@ public sealed class AsyncronizationProcessor
 
     public async Task ApplyChangesAsync(List<VTech.AsyncRefactoring.Base.Changes.ProjectChanges> changes)
     {
-        foreach(VTech.AsyncRefactoring.Base.Changes.ProjectChanges projectChanges in changes)
+        foreach (VTech.AsyncRefactoring.Base.Changes.ProjectChanges projectChanges in changes)
         {
             ProjectNode project = _node.Projects.First(x => x.Id == projectChanges.Id);
-            foreach(VTech.AsyncRefactoring.Base.Changes.DocumentChanges documentChanges in projectChanges.Documents)
+            foreach (VTech.AsyncRefactoring.Base.Changes.DocumentChanges documentChanges in projectChanges.Documents)
             {
                 DocumentNode document = project.Documents.First(x => x.Id == documentChanges.Id);
-                document.ApplyChanges(documentChanges.TextChanges);
+
+                List<Microsoft.CodeAnalysis.Text.TextChange> textChanges = [];
+
+                foreach (var textChange in documentChanges.TextChanges)
+                {
+                    Microsoft.CodeAnalysis.Text.TextSpan oldSpan = new(textChange.OldSpanStart, textChange.OldSpanLength);
+                    Microsoft.CodeAnalysis.Text.TextChange curChange = new(oldSpan, textChange.NewText);
+                    textChanges.Add(curChange);
+                }
+
+                document.ApplyChanges(textChanges);
             }
         }
     }
