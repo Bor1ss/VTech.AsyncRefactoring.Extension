@@ -95,7 +95,6 @@ internal sealed class FindAndFixAsyncIssuesCommand
 
             List<Base.Changes.ProjectChanges> changes = asyncronizationProcessor.CollectSuggestedChanges(methodSelector);
 
-            //dialog for selection
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync(_package.DisposalToken);
 
             ChangesPreviewDialog dialog = new(changes);
