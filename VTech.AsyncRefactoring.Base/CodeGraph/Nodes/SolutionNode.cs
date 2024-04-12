@@ -1,7 +1,11 @@
-﻿namespace VTech.AsyncRefactoring.Base.CodeGraph.Nodes;
+﻿using Microsoft.CodeAnalysis;
+
+namespace VTech.AsyncRefactoring.Base.CodeGraph.Nodes;
 
 public class SolutionNode
 {
+    private static string[] _skippableFiles = ["GlobalUsings.g.cs", ".AssemblyAttributes.cs", ".AssemblyInfo.cs"];
+
     private readonly Solution _solution;
     private readonly List<ProjectNode> _projects = [];
 
@@ -25,17 +29,27 @@ public class SolutionNode
         List<SyntaxTree> syntaxTrees = [];
         List<(Project project, List<(Document doc, SyntaxTree tree)> docs)> projDocs = [];
 
+        var options = CSharpParseOptions.Default.WithLanguageVersion(LanguageVersion.Latest);
+
         foreach (Project msProject in projects)
         {
             List<(Document doc, SyntaxTree tree)> docs = [];
             foreach (Document doc in msProject.Documents)
             {
+                if (_skippableFiles.Any(x => doc.FilePath.EndsWith(x)))
+                {
+                    continue;
+                }
+
                 var syntaxTree = await doc.GetSyntaxTreeAsync();
 
                 if (syntaxTree is null)
                 {
                     continue;
                 }
+
+                syntaxTree = SyntaxFactory.SyntaxTree(syntaxTree.GetRoot(), options);
+
                 docs.Add((doc, syntaxTree));
                 syntaxTrees.Add(syntaxTree);
             }
