@@ -1,8 +1,7 @@
 ﻿namespace VTech.AsyncRefactoring.Base.Changes;
 
-public class ProjectChanges
+public sealed class DocumentChanges
 {
     public string Id { get; set; }
-    public List<DocumentChanges> Documents { get; } = [];
+    public List<TextChange> TextChanges { get; set; }
 }
-
