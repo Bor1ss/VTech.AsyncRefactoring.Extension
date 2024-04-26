@@ -22,6 +22,11 @@ internal static class SymbolExtensions
 
     public static bool IsTaskType(this ITypeSymbol symbol)
     {
+        if(symbol is null || symbol.ContainingNamespace is null)
+        {
+            return false;
+        }
+
         string @namespace = symbol?.ContainingNamespace?.ToString();
         string type = symbol?.Name;
         return (type == "Task" || type.StartsWith("Task<")) && @namespace == "System.Threading.Tasks";
