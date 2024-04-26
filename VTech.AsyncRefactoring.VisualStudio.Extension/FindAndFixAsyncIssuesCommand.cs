@@ -78,7 +78,7 @@ internal sealed class FindAndFixAsyncIssuesCommand
         }
         else
         {
-            methodSelector = new CoursorRelatedMethodSelector(projectId, codeFileId, textSelection.CurrentLine, textSelection.CurrentColumn);
+            methodSelector = new CoursorRelatedMethodSelector(projectId, codeFileId, textSelection.CurrentLine);
         }
 
         ExecuteAsync(methodSelector);

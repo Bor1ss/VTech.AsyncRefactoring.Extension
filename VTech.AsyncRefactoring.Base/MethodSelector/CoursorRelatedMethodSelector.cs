@@ -1,12 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-using Microsoft.CodeAnalysis;
-
-using VTech.AsyncRefactoring.Base.CodeGraph.Nodes;
+﻿using VTech.AsyncRefactoring.Base.CodeGraph.Nodes;
 
 namespace VTech.AsyncRefactoring.Base.MethodSelector;
 public class CoursorRelatedMethodSelector : BaseMethodSelector
@@ -14,14 +6,12 @@ public class CoursorRelatedMethodSelector : BaseMethodSelector
     private readonly string _project;
     private readonly string _file;
     private readonly int _line;
-    private readonly int _column;
 
-    public CoursorRelatedMethodSelector(string project, string file, int line, int column)
+    public CoursorRelatedMethodSelector(string project, string file, int line)
     {
         _project = project;
         _file = file;
         _line = line;
-        _column = column;
     }
 
     public override IEnumerable<MethodNode> Select(SolutionNode solution)
@@ -31,12 +21,35 @@ public class CoursorRelatedMethodSelector : BaseMethodSelector
 
         HashSet<MethodNode> result = [];
 
-        var fileMethods = doc.TypeDeclarationNodes.SelectMany(x => x.Methods);
-        foreach (var method in fileMethods)
+        List<MethodNode> fileMethods = doc.TypeDeclarationNodes
+            .SelectMany(x => x.Methods)
+            .ToList();
+
+        List<MethodNode> selectedMethods = fileMethods
+            .Where(x => Intersects(x.Location, _line))
+            .ToList();
+
+        if(!selectedMethods.Any())
+        {
+            selectedMethods = fileMethods;
+        }
+
+        foreach (var method in selectedMethods)
         {
             SelectMethod(result, method);
         }
 
         return result;
+    }
+
+    private bool Intersects(Location location, int line)
+    {
+        FileLinePositionSpan lineSpan = location.GetLineSpan();
+        if (!lineSpan.IsValid)
+        {
+            return false;
+        }
+
+        return lineSpan.StartLinePosition.Line <= line && lineSpan.EndLinePosition.Line >= line;
     }
 }

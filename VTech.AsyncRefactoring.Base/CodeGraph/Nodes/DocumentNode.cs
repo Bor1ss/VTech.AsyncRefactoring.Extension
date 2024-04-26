@@ -48,6 +48,7 @@ public class DocumentNode
     }
 
     public string Id => _document.Name;
+    public Document Document => _document;
     public IReadOnlyList<BaseTypeDeclarationNode> TypeDeclarationNodes => _typeDeclarations;
     internal ProjectNode Parent => _parent;
     internal SemanticModel SemanticModel => _semanticModel;
@@ -93,9 +94,46 @@ public class DocumentNode
             _tokenReplacements.Keys, (a, _) => _tokenReplacements[a],
             _triviaReplacements.Keys, (a, _) => _triviaReplacements[a]);
 
-        return changedRoot.SyntaxTree
+        SyntaxTree changedTree = changedRoot.SyntaxTree;
+
+        List<TextChange> changes = changedTree
             .GetChanges(_tree)
             .ToList();
+
+        SourceText originalSourceText = Tree.GetText();
+        TextLineCollection originalTextLineCollection = originalSourceText.Lines;
+        string[] originalLines = originalTextLineCollection.Select(x => x.ToString()).ToArray();
+        string[] changedLines = changedTree.GetText().Lines.Select(x => x.ToString()).ToArray();
+
+        List<TextChange> finalChanges = [];
+
+        foreach (var change in changes)
+        {
+            FileLinePositionSpan oldLinePositionSpan = Tree.GetLineSpan(change.Span);
+            TextLine[] textLines = originalTextLineCollection
+                .Skip(oldLinePositionSpan.StartLinePosition.Line)
+                .Take(oldLinePositionSpan.EndLinePosition.Line - oldLinePositionSpan.StartLinePosition.Line + 1)
+                .ToArray(); // need multiple lines
+            TextSpan oldFirstLineSpan = textLines[0].Span;
+            TextSpan allLinesSpan = new(oldFirstLineSpan.Start, textLines.Sum(x => x.Span.Length));
+
+            int changeStartAtLine = change.Span.Start - oldFirstLineSpan.Start;
+            int changeLength = change.Span.Length;
+
+            string originalLine = originalSourceText.GetSubText(allLinesSpan).ToString();
+            string changedLine = string.Empty;
+            
+            if(changeStartAtLine > 0)
+            {
+                changedLine += originalLine.Substring(0, changeStartAtLine);
+            }
+
+            changedLine += change.NewText + originalLine.Substring(changeStartAtLine + changeLength);
+
+            finalChanges.Add(new TextChange(allLinesSpan, changedLine));
+        }
+
+        return finalChanges;
     }
 
     public async Task SaveAsync()

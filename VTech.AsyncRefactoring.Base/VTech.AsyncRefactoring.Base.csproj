@@ -134,7 +134,9 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AsyncronizationProcessor.cs" />
+    <Compile Include="Changes\DocumentChanges.cs" />
     <Compile Include="Changes\ProjectChanges.cs" />
+    <Compile Include="Changes\TextChange.cs" />
     <Compile Include="CodeGraph\GraphBuilder.cs" />
     <Compile Include="CodeGraph\GraphBuilderOptions.cs" />
     <Compile Include="CodeGraph\Nodes\ClassNode.cs" />

@@ -58,6 +58,7 @@ public class MethodNode
     public bool IsAsynchronized { get; private set; }
     public int Depth { get; private set; } = 0;
     public IReadOnlyList<MethodNode> InternalMethods => _internalMethods;
+    public Location Location => _methodDeclaration.Node.GetLocation();
 
     public List<MethodNode> GetRelatedMethods()
     {
