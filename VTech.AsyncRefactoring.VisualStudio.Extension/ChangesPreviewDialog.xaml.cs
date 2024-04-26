@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Windows;
 
 using Microsoft.VisualStudio.PlatformUI;
 
@@ -20,6 +21,18 @@ public partial class ChangesPreviewDialog : DialogWindow
     }
 
     public ContextVM Context { get; private set; }
+
+    private void btnApply_Click(object sender, RoutedEventArgs e)
+    {
+        DialogResult = true;
+        Close();
+    }
+
+    private void btnCancel_Click(object sender, RoutedEventArgs e)
+    {
+        DialogResult = false;
+        Close();
+    }
 }
 
 public class ContextVM

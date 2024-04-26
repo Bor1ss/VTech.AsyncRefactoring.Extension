@@ -62,7 +62,7 @@ internal sealed class FindAndFixAsyncIssuesCommand
         DTE2 dte = ServiceProvider.GetServiceAsync(typeof(DTE)).Result as DTE2 ?? throw new Exception("DTE2 not found");
         Document activeDoc = dte.ActiveDocument;
 
-        if(activeDoc is null || !string.Equals(activeDoc.Language, "csharp", StringComparison.CurrentCultureIgnoreCase))
+        if (activeDoc is null || !string.Equals(activeDoc.Language, "csharp", StringComparison.CurrentCultureIgnoreCase))
         {
             throw new Exception("ActiveDocument not found");
         }
@@ -86,8 +86,6 @@ internal sealed class FindAndFixAsyncIssuesCommand
 
     private async Task ExecuteAsync(IMethodSelector methodSelector)
     {
-        string title = "Success";
-        string msg = "done";
         try
         {
             AsyncronizationProcessor asyncronizationProcessor = new(_visualStudioWorkspace.CurrentSolution);
@@ -97,23 +95,38 @@ internal sealed class FindAndFixAsyncIssuesCommand
 
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync(_package.DisposalToken);
 
+            if (changes.Count == 0)
+            {
+                ShowMessage("Info", "No issues found.");
+
+                return;
+            }
+
             ChangesPreviewDialog dialog = new(changes);
-            dialog.ShowDialog();
+            bool? changesConfirmed = dialog.ShowDialog();
+
+            if (changesConfirmed != true)
+            {
+                return;
+            }
+
             List<Base.Changes.ProjectChanges> selectedChanges = dialog.Context.GetSelectedChanges();
 
             await asyncronizationProcessor.ApplyChangesAsync(selectedChanges);
+
+            ShowMessage("Success", "Changes successfully applied!");
         }
         catch (Exception ex)
         {
-            title = "error";
-            msg = ex.Message;
+            ShowMessage("error", ex.Message);
         }
+    }
 
-        
-
+    private void ShowMessage(string title, string message)
+    {
         VsShellUtilities.ShowMessageBox(
             _package,
-            msg,
+            message,
             title,
             OLEMSGICON.OLEMSGICON_INFO,
             OLEMSGBUTTON.OLEMSGBUTTON_OK,

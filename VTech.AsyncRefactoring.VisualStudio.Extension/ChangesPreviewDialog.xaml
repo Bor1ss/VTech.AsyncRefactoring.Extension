@@ -8,7 +8,7 @@
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
     <Grid>
-        <TreeView Name="trvFiles" HorizontalAlignment="Left" Width="300" ItemsSource="{Binding Changes}">
+        <TreeView Name="trvFiles" HorizontalAlignment="Left" VerticalAlignment="Stretch" Width="300" ItemsSource="{Binding Changes}" Margin="10,10,10,50">
             <TreeView.Resources>
                 <HierarchicalDataTemplate DataType="{x:Type local:ProjectChangesViewModel}" ItemsSource="{Binding Documents}">
                     <StackPanel Orientation="Horizontal">
@@ -27,7 +27,7 @@
                 </DataTemplate>
             </TreeView.Resources>
         </TreeView>
-        <ListView x:Name="lvChanges" HorizontalAlignment="Right" Width="500" ItemsSource="{Binding ElementName=trvFiles, Path=SelectedItem.TextChanges}">
+        <ListView x:Name="lvChanges" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" ItemsSource="{Binding ElementName=trvFiles, Path=SelectedItem.TextChanges}" Margin="315,10,10,50">
             <ListView.ItemTemplate>
                 <DataTemplate DataType="{x:Type local:TextChangeViewModel}">
                     <StackPanel>
@@ -40,5 +40,7 @@
                 </DataTemplate>
             </ListView.ItemTemplate>
         </ListView>
+        <Button Name="applyBtn" Click="btnApply_Click" Width="100" Height="30" Margin="0,0,120,10" VerticalAlignment="Bottom" HorizontalAlignment="Right">Apply</Button>
+        <Button Name="cancelBtn" Click="btnCancel_Click" Width="100" Height="30" Margin="0,0,10,10" VerticalAlignment="Bottom" HorizontalAlignment="Right">Cancel</Button>
     </Grid>
 </platformUi:DialogWindow>
