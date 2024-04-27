@@ -107,23 +107,24 @@ public class DocumentNode
 
         List<TextChange> finalChanges = [];
 
-        foreach (var change in changes)
+        for (int i = 0; i < changes.Count; i++)
         {
+            TextChange change = changes[i];
             FileLinePositionSpan oldLinePositionSpan = Tree.GetLineSpan(change.Span);
             TextLine[] textLines = originalTextLineCollection
                 .Skip(oldLinePositionSpan.StartLinePosition.Line)
                 .Take(oldLinePositionSpan.EndLinePosition.Line - oldLinePositionSpan.StartLinePosition.Line + 1)
-                .ToArray(); // need multiple lines
+                .ToArray();
             TextSpan oldFirstLineSpan = textLines[0].Span;
-            TextSpan allLinesSpan = new(oldFirstLineSpan.Start, textLines.Sum(x => x.Span.Length));
+            TextSpan allLinesSpan = new(oldFirstLineSpan.Start, textLines.Sum(x => x.SpanIncludingLineBreak.Length));
 
             int changeStartAtLine = change.Span.Start - oldFirstLineSpan.Start;
             int changeLength = change.Span.Length;
 
             string originalLine = originalSourceText.GetSubText(allLinesSpan).ToString();
             string changedLine = string.Empty;
-            
-            if(changeStartAtLine > 0)
+
+            if (changeStartAtLine > 0)
             {
                 changedLine += originalLine.Substring(0, changeStartAtLine);
             }
@@ -138,7 +139,7 @@ public class DocumentNode
 
     public async Task SaveAsync()
     {
-        if(!HasChangesPrepared)
+        if (!HasChangesPrepared)
         {
             return;
         }
