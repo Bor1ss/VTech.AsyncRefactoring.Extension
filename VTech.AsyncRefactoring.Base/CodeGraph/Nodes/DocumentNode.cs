@@ -1,4 +1,8 @@
-﻿using Microsoft.CodeAnalysis.Text;
+﻿using System.Collections;
+using System;
+using System.Collections.Generic;
+
+using Microsoft.CodeAnalysis.Text;
 
 namespace VTech.AsyncRefactoring.Base.CodeGraph.Nodes;
 
@@ -24,11 +28,11 @@ public class DocumentNode
     {
         await Task.Yield();
 
-        GraphBuilderOptions options = new()  
-        { 
-            MsDocument = _document, 
-            Model = _semanticModel, 
-            Document = this, 
+        GraphBuilderOptions options = new()
+        {
+            MsDocument = _document,
+            Model = _semanticModel,
+            Document = this,
             AllSemanticModels = allSemanticModels,
             SymbolInfoStorage = symbolInfoStorage
         };
@@ -43,7 +47,7 @@ public class DocumentNode
         SyntaxNode syntaxRoot = await tree.GetRootAsync();
         SemanticModel semanticModel = parent.Compilation.GetSemanticModel(tree);
         DocumentNode document = new(parent, msDocument, semanticModel, tree, syntaxRoot);
-        
+
         return document;
     }
 
@@ -102,11 +106,13 @@ public class DocumentNode
 
         SourceText originalSourceText = Tree.GetText();
         TextLineCollection originalTextLineCollection = originalSourceText.Lines;
-        string[] originalLines = originalTextLineCollection.Select(x => x.ToString()).ToArray();
-        string[] changedLines = changedTree.GetText().Lines.Select(x => x.ToString()).ToArray();
+
+        Dictionary<TextSpan, List<TextChange>> changesForSpan = [];
+        List<KeyValuePair<TextSpan, TextChange>> spanChange = [];
 
         List<TextChange> finalChanges = [];
 
+        //assosiate each change with line
         for (int i = 0; i < changes.Count; i++)
         {
             TextChange change = changes[i];
@@ -118,20 +124,72 @@ public class DocumentNode
             TextSpan oldFirstLineSpan = textLines[0].Span;
             TextSpan allLinesSpan = new(oldFirstLineSpan.Start, textLines.Sum(x => x.SpanIncludingLineBreak.Length));
 
-            int changeStartAtLine = change.Span.Start - oldFirstLineSpan.Start;
-            int changeLength = change.Span.Length;
+            spanChange.Add(new (allLinesSpan, change));
 
-            string originalLine = originalSourceText.GetSubText(allLinesSpan).ToString();
-            string changedLine = string.Empty;
+            //if(i > 0)
+            //{
+            //    TextChange prevChange = finalChanges.Last();
+            //    if(prevChange.Span.End == (allLinesSpan.Start + 1))
+            //    {
+            //        finalChanges.Remove(prevChange);
 
-            if (changeStartAtLine > 0)
+            //        allLinesSpan = new TextSpan(prevChange.Span.Start, prevChange.Span.Length + allLinesSpan.Length);
+            //        changedLine = prevChange.NewText + changedLine;
+            //    }
+            //}
+
+            //finalChanges.Add(new TextChange(allLinesSpan, changedLine));
+        }
+
+        TextSpan currentSpan = spanChange[0].Key;
+        List<TextChange> changesForCurrentSpan = [spanChange[0].Value];
+
+        //group line changes
+        for(int i = 1; i < spanChange.Count; i++)
+        {
+            bool isIntersected = currentSpan.IntersectsWith(spanChange[i].Key);
+            if(!isIntersected)
             {
-                changedLine += originalLine.Substring(0, changeStartAtLine);
+                changesForSpan.Add(currentSpan, changesForCurrentSpan);
+                currentSpan = spanChange[i].Key;
+                changesForCurrentSpan = [spanChange[i].Value];
+
+                continue;
             }
 
-            changedLine += change.NewText + originalLine.Substring(changeStartAtLine + changeLength);
+            int comboStart = Math.Min(currentSpan.Start, spanChange[i].Key.Start);
+            int comboEnd = Math.Max(currentSpan.End, spanChange[i].Key.End);
 
-            finalChanges.Add(new TextChange(allLinesSpan, changedLine));
+            currentSpan = currentSpan.Intersection(spanChange[i].Key).Value;
+
+            changesForCurrentSpan.Add(spanChange[i].Value);
+        }
+
+        changesForSpan.Add(currentSpan, changesForCurrentSpan);
+
+        //apply changes to line
+        foreach (TextSpan textSpan in changesForSpan.Keys)
+        {
+            string originalLine = originalSourceText.GetSubText(textSpan).ToString();
+
+            for (int i = changesForSpan[textSpan].Count - 1; i >= 0; i--)
+            {
+                string changedLine = string.Empty;
+
+                TextChange change = changesForSpan[textSpan][i];
+
+                int changeStartAtLine = change.Span.Start - textSpan.Start;
+                int changeLength = change.Span.Length;
+
+                if (changeStartAtLine > 0)
+                {
+                    changedLine += originalLine.Substring(0, changeStartAtLine);
+                }
+
+                originalLine = changedLine + change.NewText + originalLine.Substring(changeStartAtLine + changeLength);
+            }
+
+            finalChanges.Add(new TextChange(textSpan, originalLine));
         }
 
         return finalChanges;
