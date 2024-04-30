@@ -1,10 +1,8 @@
-﻿using Microsoft.CodeAnalysis;
-
-namespace VTech.AsyncRefactoring.Base.CodeGraph.Nodes;
+﻿namespace VTech.AsyncRefactoring.Base.CodeGraph.Nodes;
 
 public class SolutionNode
 {
-    private static string[] _skippableFiles = ["GlobalUsings.g.cs", ".AssemblyAttributes.cs", ".AssemblyInfo.cs"];
+    private static readonly string[] _skippableFiles = ["GlobalUsings.g.cs", ".AssemblyAttributes.cs", ".AssemblyInfo.cs"];
 
     private readonly Solution _solution;
     private readonly List<ProjectNode> _projects = [];

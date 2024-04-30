@@ -11,6 +11,10 @@ public class DocumentNode
     private readonly List<BaseTypeDeclarationNode> _typeDeclarations = [];
     private readonly SemanticModel _semanticModel;
 
+    private readonly Dictionary<SyntaxNode, SyntaxNode> _nodeReplacements = [];
+    private readonly Dictionary<SyntaxToken, SyntaxToken> _tokenReplacements = [];
+    private readonly Dictionary<SyntaxTrivia, SyntaxTrivia> _triviaReplacements = [];
+
     private DocumentNode(ProjectNode parent, Document document, SemanticModel model, SyntaxTree syntaxTree, SyntaxNode syntaxRoot)
     {
         _parent = parent;
@@ -62,10 +66,6 @@ public class DocumentNode
     {
         _typeDeclarations.Add(declaration);
     }
-
-    private readonly Dictionary<SyntaxNode, SyntaxNode> _nodeReplacements = [];
-    private readonly Dictionary<SyntaxToken, SyntaxToken> _tokenReplacements = [];
-    private readonly Dictionary<SyntaxTrivia, SyntaxTrivia> _triviaReplacements = [];
 
     public void Replace(SyntaxNode old, SyntaxNode @new)
     {

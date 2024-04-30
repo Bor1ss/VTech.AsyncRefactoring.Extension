@@ -10,8 +10,6 @@ public abstract class BaseTypeDeclarationNode
     protected readonly List<BaseTypeDeclarationNode> _inheritedBy = [];
     protected readonly List<INamedTypeSymbol> _bases = [];
 
-    public DocumentNode Parent => _parent;
-
     protected BaseTypeDeclarationNode(ISymbol symbol, TypeDeclarationSyntax typeDeclarationSyntax, DocumentNode parent)
     {
         _symbol = symbol;
@@ -33,9 +31,9 @@ public abstract class BaseTypeDeclarationNode
     }
 
     public string Id => _symbol.Name;
-    public IReadOnlyList<MethodNode> Methods => _methods;
+    internal IReadOnlyList<MethodNode> Methods => _methods;
     internal IReadOnlyList<BaseTypeDeclarationNode> Bases => _inherits;
-
+    internal DocumentNode Parent => _parent;
     internal ISymbol Symbol => _symbol;
     internal TypeDeclarationSyntax TypeDeclarationSyntax => _typeDeclarationSyntax;
 
