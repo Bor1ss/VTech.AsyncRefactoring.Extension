@@ -127,12 +127,12 @@ public sealed class AsyncronizationProcessor
         codeGraphVisualizer.Visualize(_node);
     }
 
-    public async Task ApplyChangesAsync(List<VTech.AsyncRefactoring.Base.Changes.ProjectChanges> changes)
+    public async Task ApplyChangesAsync(List<Changes.ProjectChanges> changes)
     {
-        foreach (VTech.AsyncRefactoring.Base.Changes.ProjectChanges projectChanges in changes)
+        foreach (Changes.ProjectChanges projectChanges in changes)
         {
             ProjectNode project = _node.Projects.First(x => x.Id == projectChanges.Id);
-            foreach (VTech.AsyncRefactoring.Base.Changes.DocumentChanges documentChanges in projectChanges.Documents)
+            foreach (Changes.DocumentChanges documentChanges in projectChanges.Documents)
             {
                 DocumentNode document = project.Documents.First(x => x.Id == documentChanges.Id);
 

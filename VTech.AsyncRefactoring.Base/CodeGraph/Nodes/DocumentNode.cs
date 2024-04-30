@@ -1,8 +1,4 @@
-﻿using System.Collections;
-using System;
-using System.Collections.Generic;
-
-using Microsoft.CodeAnalysis.Text;
+﻿using Microsoft.CodeAnalysis.Text;
 
 namespace VTech.AsyncRefactoring.Base.CodeGraph.Nodes;
 
@@ -125,20 +121,6 @@ public class DocumentNode
             TextSpan allLinesSpan = new(oldFirstLineSpan.Start, textLines.Sum(x => x.SpanIncludingLineBreak.Length));
 
             spanChange.Add(new (allLinesSpan, change));
-
-            //if(i > 0)
-            //{
-            //    TextChange prevChange = finalChanges.Last();
-            //    if(prevChange.Span.End == (allLinesSpan.Start + 1))
-            //    {
-            //        finalChanges.Remove(prevChange);
-
-            //        allLinesSpan = new TextSpan(prevChange.Span.Start, prevChange.Span.Length + allLinesSpan.Length);
-            //        changedLine = prevChange.NewText + changedLine;
-            //    }
-            //}
-
-            //finalChanges.Add(new TextChange(allLinesSpan, changedLine));
         }
 
         TextSpan currentSpan = spanChange[0].Key;
@@ -195,26 +177,9 @@ public class DocumentNode
         return finalChanges;
     }
 
-    public async Task SaveAsync()
-    {
-        if (!HasChangesPrepared)
-        {
-            return;
-        }
-
-        SyntaxNode changedRoot = _root.ReplaceSyntax(
-            _nodeReplacements.Keys, (a, _) => _nodeReplacements[a],
-            _tokenReplacements.Keys, (a, _) => _tokenReplacements[a],
-            _triviaReplacements.Keys, (a, _) => _triviaReplacements[a]);
-
-        var text = changedRoot.GetText();
-
-        await Task.Run(() => System.IO.File.WriteAllText(_document.FilePath, text.ToString()));
-    }
-
     internal void ApplyChanges(List<TextChange> textChanges)
     {
-        var text = _root.GetText().WithChanges(textChanges);
+        SourceText text = _root.GetText().WithChanges(textChanges);
 
         System.IO.File.WriteAllText(_document.FilePath, text.ToString());
     }
