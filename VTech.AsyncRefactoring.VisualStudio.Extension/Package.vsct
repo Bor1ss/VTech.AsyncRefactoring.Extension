@@ -14,7 +14,7 @@
         <Parent guid="guidPackageCmdSet" id="MyMenuGroup" />
         <Icon guid="guidImages" id="bmpPic1" />
         <Strings>
-          <ButtonText>Invoke FindAndFixAsyncIssuesCommand</ButtonText>
+          <ButtonText>Find and Fix async issues</ButtonText>
         </Strings>
       </Button>
     </Buttons>
