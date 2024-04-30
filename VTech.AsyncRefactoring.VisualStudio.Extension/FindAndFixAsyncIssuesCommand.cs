@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.Design;
+using System.Threading.Tasks;
 
 using EnvDTE;
 
@@ -10,6 +11,7 @@ using Microsoft.VisualStudio.ComponentModelHost;
 using Microsoft.VisualStudio.LanguageServices;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
+using Microsoft.VisualStudio.Threading;
 
 using VTech.AsyncRefactoring.Base;
 using VTech.AsyncRefactoring.Base.MethodSelector;
@@ -81,13 +83,21 @@ internal sealed class FindAndFixAsyncIssuesCommand
             methodSelector = new CoursorRelatedMethodSelector(projectId, codeFileId, textSelection.CurrentLine);
         }
 
-        ExecuteAsync(methodSelector);
+        ExecuteAsync(methodSelector).ConfigureAwait(false);
     }
 
     private async Task ExecuteAsync(IMethodSelector methodSelector)
     {
+        await Task.Yield();
+
         try
         {
+            //await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync(_package.DisposalToken);
+
+            ////show spinner
+
+            await TaskScheduler.Default;
+
             AsyncronizationProcessor asyncronizationProcessor = new(_visualStudioWorkspace.CurrentSolution);
             await asyncronizationProcessor.InitializeCodeMapAsync();
 

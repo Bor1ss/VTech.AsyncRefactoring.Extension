@@ -169,7 +169,7 @@ public sealed class GraphBuilder : CSharpSyntaxWalker
 
     public override void VisitVariableDeclarator(VariableDeclaratorSyntax node)
     {
-        var t = _options.Document.SemanticModel.GetTypeInfo(node.Initializer.Value);
+        //var t = _options.Document.SemanticModel.GetTypeInfo(node.Initializer.Value);
         base.VisitVariableDeclarator(node);
     }
 }
