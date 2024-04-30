@@ -20,7 +20,7 @@ public sealed class GraphBuilder : CSharpSyntaxWalker
 
     public override void VisitClassDeclaration(ClassDeclarationSyntax node)
     {
-        var symbol = GetSymbol(node);
+        var symbol = GetSymbol(node, _options.Document.SemanticModel);
         _baseNode = new ClassNode(symbol, node, _options.Document);
         _options.Document.AddTypeDeclaration(_baseNode);
 
@@ -29,7 +29,7 @@ public sealed class GraphBuilder : CSharpSyntaxWalker
 
     public override void VisitInterfaceDeclaration(InterfaceDeclarationSyntax node)
     {
-        var symbol = GetSymbol(node);
+        var symbol = GetSymbol(node, _options.Document.SemanticModel);
         _baseNode = new InterfaceNode(symbol, node, _options.Document);
         _options.Document.AddTypeDeclaration(_baseNode);
 
@@ -38,7 +38,7 @@ public sealed class GraphBuilder : CSharpSyntaxWalker
 
     public override void VisitStructDeclaration(StructDeclarationSyntax node)
     {
-        var symbol = GetSymbol(node);
+        var symbol = GetSymbol(node, _options.Document.SemanticModel);
         _baseNode = new StructNode(symbol, node, _options.Document);
         _options.Document.AddTypeDeclaration(_baseNode);
 
@@ -47,7 +47,7 @@ public sealed class GraphBuilder : CSharpSyntaxWalker
 
     public override void VisitRecordDeclaration(RecordDeclarationSyntax node)
     {
-        var symbol = GetSymbol(node);
+        var symbol = GetSymbol(node, _options.Document.SemanticModel);
         _baseNode = new RecordNode(symbol, node, _options.Document);
         _options.Document.AddTypeDeclaration(_baseNode);
 
@@ -56,9 +56,17 @@ public sealed class GraphBuilder : CSharpSyntaxWalker
 
     public override void VisitMethodDeclaration(MethodDeclarationSyntax node)
     {
-        var methodSymbol = GetSymbol(node);
+        var methodSymbol = GetSymbol(node, _options.Document.SemanticModel);
 
         if (methodSymbol == null) return;
+
+        //todo: callers to the method
+        //var callers = SymbolFinder
+        //      .FindCallersAsync(methodSymbol, _options.Document.Document.Project.Solution)
+        //      .Result
+        //      .Select(c => c.CallingSymbol)
+        //      .Distinct(SymbolEqualityComparer.Default)
+        //      .ToList();
 
         MethodNode method = new(node, methodSymbol as IMethodSymbol, _baseNode!);
         _baseNode!.AddMethod(method);
@@ -74,16 +82,6 @@ public sealed class GraphBuilder : CSharpSyntaxWalker
             method.AddInvocation(invocationSymbol);
 
             _options.SymbolInfoStorage.Set(invocation, invocationSymbol);
-
-            /*
-              //todo: callers to the method
-              var callers = SymbolFinder
-                    .FindCallersAsync(symbolRef.Symbol, _document.ProjectNode.Solution)
-                    .Result
-                    .Select(c => c.CallingSymbol.GetFullyQualifiedName())
-                    .GroupBy(fqn => fqn);
-             
-             */
         }
 
         _parentMethod = method;
@@ -93,7 +91,7 @@ public sealed class GraphBuilder : CSharpSyntaxWalker
 
     public override void VisitLocalFunctionStatement(LocalFunctionStatementSyntax node)
     {
-        var methodSymbol = GetSymbol(node);
+        var methodSymbol = GetSymbol(node, _options.Document.SemanticModel);
 
         if (methodSymbol == null) return;
 
@@ -112,16 +110,6 @@ public sealed class GraphBuilder : CSharpSyntaxWalker
             method.AddInvocation(invocationSymbol);
 
             _options.SymbolInfoStorage.Set(invocation, invocationSymbol);
-
-            /*
-              //todo: callers to the method
-              var callers = SymbolFinder
-                    .FindCallersAsync(symbolRef.Symbol, _document.ProjectNode.Solution)
-                    .Result
-                    .Select(c => c.CallingSymbol.GetFullyQualifiedName())
-                    .GroupBy(fqn => fqn);
-             
-             */
         }
 
         MethodNode previousParent = _parentMethod;
@@ -138,6 +126,20 @@ public sealed class GraphBuilder : CSharpSyntaxWalker
     public override void VisitParenthesizedLambdaExpression(ParenthesizedLambdaExpressionSyntax node)
     {
         base.VisitParenthesizedLambdaExpression(node);
+    }
+
+    private ISymbol GetSymbol(SyntaxNode node, SemanticModel semanticModel)
+    {
+        try
+        {
+            return node.GetType().IsSubclassOf(typeof(MemberDeclarationSyntax)) || node.GetType() == typeof(VariableDeclaratorSyntax) || node.GetType() == typeof(LocalFunctionStatementSyntax)
+            ? semanticModel.GetDeclaredSymbol(node)
+            : semanticModel.GetSymbolInfo(node).Symbol;
+        }
+        catch(Exception ex)
+        {
+            return null;
+        }
     }
 
     private ISymbol GetSymbol(SyntaxNode node)
