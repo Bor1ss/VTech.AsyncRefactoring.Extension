@@ -45,7 +45,7 @@ public class DocumentNode
     public static async Task<DocumentNode> CreateAsync(ProjectNode parent, Document msDocument, SyntaxTree tree)
     {
         SyntaxNode syntaxRoot = await tree.GetRootAsync();
-        SemanticModel semanticModel = parent.Compilation.GetSemanticModel(tree);
+        SemanticModel semanticModel = parent.Compilation.GetSemanticModel(tree, true);
         DocumentNode document = new(parent, msDocument, semanticModel, tree, syntaxRoot);
 
         return document;
@@ -142,7 +142,7 @@ public class DocumentNode
             int comboStart = Math.Min(currentSpan.Start, spanChange[i].Key.Start);
             int comboEnd = Math.Max(currentSpan.End, spanChange[i].Key.End);
 
-            currentSpan = currentSpan.Intersection(spanChange[i].Key).Value;
+            currentSpan = new TextSpan(comboStart, comboEnd - comboStart);
 
             changesForCurrentSpan.Add(spanChange[i].Value);
         }
