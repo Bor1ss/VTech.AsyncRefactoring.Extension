@@ -84,6 +84,17 @@ public sealed class GraphBuilder : CSharpSyntaxWalker
             _options.SymbolInfoStorage.Set(invocation, invocationSymbol);
         }
 
+        var identifiers = descendants.OfType<IdentifierNameSyntax>();
+        foreach (var identifier in identifiers)
+        {
+            var identifierSymbol = GetSymbol(identifier);
+            if (identifierSymbol == null) continue;
+
+            method.AddInvocation(identifierSymbol);
+
+            _options.SymbolInfoStorage.Set(identifier, identifierSymbol);
+        }
+
         _parentMethod = method;
         base.VisitMethodDeclaration(node);
         _parentMethod = null;

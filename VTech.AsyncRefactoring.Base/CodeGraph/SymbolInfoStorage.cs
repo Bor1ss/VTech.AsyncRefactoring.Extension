@@ -11,6 +11,9 @@ public class SymbolInfoStorage
     [System.Runtime.CompilerServices.IndexerName("Method")]
     public MethodNode this[InvocationExpressionSyntax invocation] => _items.FirstOrDefault(x => x.InvocationExpressions.Contains(invocation))?.Method;
 
+    [System.Runtime.CompilerServices.IndexerName("Method")]
+    public MethodNode this[IdentifierNameSyntax identifierName] => _items.FirstOrDefault(x => x.IdentifierNames.Contains(identifierName))?.Method;
+
     internal void Fill(Dictionary<ISymbol, MethodNode> symbolMethodMap)
     {
         foreach(var symbol in symbolMethodMap.Keys)
@@ -39,6 +42,20 @@ public class SymbolInfoStorage
         item.InvocationExpressions.Add(invocation);
     }
 
+    internal void Set(IdentifierNameSyntax identifier, ISymbol invocationSymbol)
+    {
+        Item item = _items.FirstOrDefault(x => SymbolEqualityComparer.Default.Equals(x.Symbol, invocationSymbol));
+
+        if (item is null)
+        {
+            item = new(invocationSymbol);
+
+            _items.Add(item);
+        }
+
+        item.IdentifierNames.Add(identifier);
+    }
+
 
     private class Item
     {
@@ -48,6 +65,7 @@ public class SymbolInfoStorage
         }
 
         public HashSet<InvocationExpressionSyntax> InvocationExpressions { get; set; } = [];
+        public HashSet<IdentifierNameSyntax> IdentifierNames { get; set; } = [];
         public ISymbol Symbol { get; private set; }
         public MethodNode Method { get; set; }
     }
