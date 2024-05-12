@@ -188,7 +188,7 @@ public class DocumentNode
         if(_customUsingAdded)
         {
             int idx = text.IndexOf(Environment.NewLine);
-            text = text.Substring(idx);
+            text = text.Substring(idx + Environment.NewLine.Length);
         }
 
         System.IO.File.WriteAllText(_document.FilePath, text);
