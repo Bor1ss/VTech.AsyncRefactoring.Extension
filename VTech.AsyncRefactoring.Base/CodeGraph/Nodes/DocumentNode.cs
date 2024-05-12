@@ -8,6 +8,7 @@ public class DocumentNode
     private readonly Document _document;
     private readonly SyntaxTree _tree;
     private readonly SyntaxNode _root;
+    private readonly bool _customUsingAdded;
     private readonly List<BaseTypeDeclarationNode> _typeDeclarations = [];
     private readonly SemanticModel _semanticModel;
 
@@ -15,13 +16,14 @@ public class DocumentNode
     private readonly Dictionary<SyntaxToken, SyntaxToken> _tokenReplacements = [];
     private readonly Dictionary<SyntaxTrivia, SyntaxTrivia> _triviaReplacements = [];
 
-    private DocumentNode(ProjectNode parent, Document document, SemanticModel model, SyntaxTree syntaxTree, SyntaxNode syntaxRoot)
+    private DocumentNode(ProjectNode parent, Document document, SemanticModel model, SyntaxTree syntaxTree, SyntaxNode syntaxRoot, bool customUsingAdded)
     {
         _parent = parent;
         _document = document;
         _semanticModel = model;
         _tree = syntaxTree;
         _root = syntaxRoot;
+        _customUsingAdded = customUsingAdded;
     }
 
     public async Task InitMethodsAsync(List<SemanticModel> allSemanticModels, SymbolInfoStorage symbolInfoStorage)
@@ -42,11 +44,11 @@ public class DocumentNode
         graphBuilder.Visit(_root);
     }
 
-    public static async Task<DocumentNode> CreateAsync(ProjectNode parent, Document msDocument, SyntaxTree tree)
+    public static async Task<DocumentNode> CreateAsync(ProjectNode parent, Document msDocument, SyntaxTree tree, bool customUsingAdded)
     {
         SyntaxNode syntaxRoot = await tree.GetRootAsync();
         SemanticModel semanticModel = parent.Compilation.GetSemanticModel(tree, true);
-        DocumentNode document = new(parent, msDocument, semanticModel, tree, syntaxRoot);
+        DocumentNode document = new(parent, msDocument, semanticModel, tree, syntaxRoot, customUsingAdded);
 
         return document;
     }
@@ -179,8 +181,16 @@ public class DocumentNode
 
     internal void ApplyChanges(List<TextChange> textChanges)
     {
-        SourceText text = _root.GetText().WithChanges(textChanges);
+        string text = _root.GetText()
+            .WithChanges(textChanges)
+            .ToString();
 
-        System.IO.File.WriteAllText(_document.FilePath, text.ToString());
+        if(_customUsingAdded)
+        {
+            int idx = text.IndexOf(Environment.NewLine);
+            text = text.Substring(idx);
+        }
+
+        System.IO.File.WriteAllText(_document.FilePath, text);
     }
 }

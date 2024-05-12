@@ -1,4 +1,7 @@
 ﻿using System.IO;
+using System.Text.RegularExpressions;
+
+using Microsoft.CodeAnalysis.Text;
 
 namespace VTech.AsyncRefactoring.Base.CodeGraph.Nodes;
 
@@ -27,7 +30,7 @@ public class SolutionNode
         .ToList();
 
         List<SyntaxTree> syntaxTrees = [];
-        List<(Project project, List<(Document doc, SyntaxTree tree)> docs)> projDocs = [];
+        List<(Project project, List<(Document doc, SyntaxTree tree, bool CustomUsingsAdded)> docs)> projDocs = [];
 
         var options = CSharpParseOptions.Default
             .WithLanguageVersion(LanguageVersion.Latest)
@@ -43,7 +46,16 @@ public class SolutionNode
             IEnumerable<string> metaFiles = msProject.MetadataReferences.Select(x => x.Display).Where(File.Exists);
             dllPaths.AddRange(metaFiles);
 
-            List<(Document doc, SyntaxTree tree)> docs = [];
+            bool hasImplicitUsings = false;
+            if(File.Exists(msProject.FilePath))
+            {
+                string csprojContent = File.ReadAllText(msProject.FilePath);
+                hasImplicitUsings = Regex.IsMatch(csprojContent, "<ImplicitUsings>\\s*enable\\s*</ImplicitUsings>", RegexOptions.IgnoreCase & RegexOptions.Multiline)
+                    || Regex.IsMatch(csprojContent, "<ImplicitUsings>\\s*enabled\\s*</ImplicitUsings>", RegexOptions.IgnoreCase & RegexOptions.Multiline)
+                    || Regex.IsMatch(csprojContent, "<ImplicitUsings>\\s*true\\s*</ImplicitUsings>", RegexOptions.IgnoreCase & RegexOptions.Multiline);
+            }
+
+            List<(Document doc, SyntaxTree tree, bool CustomUsingsAdded)> docs = [];
             foreach (Document doc in msProject.Documents)
             {
                 if (_skippableFiles.Any(x => doc.FilePath.EndsWith(x)))
@@ -58,7 +70,13 @@ public class SolutionNode
                     continue;
                 }
 
-                docs.Add((doc, syntaxTree));
+                if(hasImplicitUsings)
+                {
+                    var newText = syntaxTree.GetRoot().GetText().WithChanges(new TextChange(new TextSpan(0, 0), $"using System;using System.Collections.Generic;using System.IO;using System.Linq;using System.Net.Http;using System.Threading;using System.Threading.Tasks{Environment.NewLine}"));
+                    syntaxTree = syntaxTree.WithChangedText(newText);
+                }
+
+                docs.Add((doc, syntaxTree, hasImplicitUsings));
                 syntaxTrees.Add(syntaxTree);
             }
             projDocs.Add((msProject, docs));

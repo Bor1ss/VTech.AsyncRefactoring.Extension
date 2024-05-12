@@ -15,20 +15,20 @@ public class ProjectNode
         _compilation = compilation;
     }
 
-    private async Task InitDocumentsAsync(List<(Document doc, SyntaxTree tree)> docs)
+    private async Task InitDocumentsAsync(List<(Document doc, SyntaxTree tree, bool CustomUsingsAdded)> docs)
     {
-        foreach (var (doc, tree) in docs)
+        foreach (var (doc, tree, customUsingAdded) in docs)
         {
             if(_skippableFiles.Any(x => doc.FilePath.EndsWith(x)))
             {
                 continue;
             }
 
-            _documents.Add(await DocumentNode.CreateAsync(this, doc, tree));
+            _documents.Add(await DocumentNode.CreateAsync(this, doc, tree, customUsingAdded));
         }
     }
 
-    public static async Task<ProjectNode> CreateAsync(SolutionNode parent, Project msProject, Compilation compilation, List<(Document doc, SyntaxTree tree)> docs)
+    public static async Task<ProjectNode> CreateAsync(SolutionNode parent, Project msProject, Compilation compilation, List<(Document doc, SyntaxTree tree, bool CustomUsingsAdded)> docs)
     {
         var project = new ProjectNode(parent, msProject, compilation);
         await project.InitDocumentsAsync(docs);
