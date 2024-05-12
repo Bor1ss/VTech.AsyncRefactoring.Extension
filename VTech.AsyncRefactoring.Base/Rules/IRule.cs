@@ -117,6 +117,13 @@ internal abstract class RuleBase : IRule
 
     protected bool IsNodeOfTaskType(BaseTypeDeclarationNode parent, IMethodSymbol methodSymbol, SyntaxNode node)
     {
+        TypeInfo typeInfo = parent.Parent.SemanticModel.GetTypeInfo(node);
+        return typeInfo.IsTaskType() || typeInfo.IsFuncReturnedTaskType();
+        if (typeInfo.IsTaskType() || typeInfo.IsFuncReturnedTaskType())
+        {
+            return true;
+        }
+
         if (node is InvocationExpressionSyntax ies)
         {
             MethodNode method = _symbolInfoStorage[ies];
@@ -129,11 +136,11 @@ internal abstract class RuleBase : IRule
             IdentifierNameSyntax ident = ies.DescendantNodes().OfType<IdentifierNameSyntax>().FirstOrDefault();
             if(ident is not null)
             {
-                TypeInfo typeInfo = GetTypeInfo(parent, ident);
+                var typeSymbol = GetTypeSymbol(parent, ident);
 
-                _ = typeInfo;
+                _ = typeSymbol;
 
-                return typeInfo.IsTaskType() || typeInfo.IsFuncReturnedTaskType();
+                return typeSymbol?.IsTaskType() == true || typeSymbol?.IsFuncReturnedTaskType() == true;
             }
 
             return false;
@@ -141,13 +148,13 @@ internal abstract class RuleBase : IRule
 
         if (node is IdentifierNameSyntax identifierName)
         {
-            return GetTypeInfo(parent, identifierName).IsTaskType();
+            return GetTypeSymbol(parent, identifierName)?.IsTaskType() == true;
         }
 
         return false;
     }
 
-    private TypeInfo GetTypeInfo(BaseTypeDeclarationNode parent, IdentifierNameSyntax identifierName)
+    private ITypeSymbol GetTypeSymbol(BaseTypeDeclarationNode parent, IdentifierNameSyntax identifierName)
     {
         foreach (var ancestor in identifierName.Ancestors())
         {
@@ -167,7 +174,7 @@ internal abstract class RuleBase : IRule
                         continue;
                     }
 
-                    return parent.Parent.SemanticModel.GetTypeInfo(variableDeclarator.Initializer.Value);
+                    return parent.Parent.SemanticModel.GetTypeInfo(variableDeclarator.Initializer.Value).Type;
                 }
             }
 
@@ -176,8 +183,21 @@ internal abstract class RuleBase : IRule
                 ParameterSyntax parameter = methodDeclaration.ParameterList.Parameters.FirstOrDefault(x => x.Identifier.ToString() == identifierName.ToString());
                 if (parameter is not null)
                 {
-                    return parent.Parent.SemanticModel.GetTypeInfo(parameter.Type);
+                    return parent.Parent.SemanticModel.GetTypeInfo(parameter.Type).Type;
                 }
+            }
+
+            if(ancestor is MemberAccessExpressionSyntax memberAccessExpressionSyntax)
+            {
+                var semanticModel = parent.Parent.SemanticModel;
+                var typeInfo = semanticModel.GetTypeInfo(ancestor);
+                var symb = semanticModel.GetSymbolInfo(ancestor);
+
+                if (symb.Symbol is IMethodSymbol methodSymbol)
+                {
+                    return methodSymbol.ReturnType;
+                }
+
             }
         }
 
