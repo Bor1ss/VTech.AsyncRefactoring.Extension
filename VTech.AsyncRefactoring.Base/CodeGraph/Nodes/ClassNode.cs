@@ -31,7 +31,7 @@ public abstract class BaseTypeDeclarationNode
     }
 
     public string Id => _symbol.Name;
-    internal IReadOnlyList<MethodNode> Methods => _methods;
+    public IReadOnlyList<MethodNode> Methods => _methods;
     internal IReadOnlyList<BaseTypeDeclarationNode> Bases => _inherits;
     internal DocumentNode Parent => _parent;
     internal ISymbol Symbol => _symbol;
