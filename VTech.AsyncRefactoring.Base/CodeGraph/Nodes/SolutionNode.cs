@@ -1,4 +1,6 @@
-﻿namespace VTech.AsyncRefactoring.Base.CodeGraph.Nodes;
+﻿using System.IO;
+
+namespace VTech.AsyncRefactoring.Base.CodeGraph.Nodes;
 
 public class SolutionNode
 {
@@ -27,10 +29,20 @@ public class SolutionNode
         List<SyntaxTree> syntaxTrees = [];
         List<(Project project, List<(Document doc, SyntaxTree tree)> docs)> projDocs = [];
 
-        var options = CSharpParseOptions.Default.WithLanguageVersion(LanguageVersion.Latest);
+        var options = CSharpParseOptions.Default
+            .WithLanguageVersion(LanguageVersion.Latest)
+            .WithFeatures([
+                new KeyValuePair<string, string>("flow-analysis", ""),
+                new KeyValuePair<string, string>("InterceptorsPreviewNamespaces", "System;System.Collections.Generic;System.IO;System.Linq;System.Net.Http;System.Threading;System.Threading.Tasks"),
+            ]);
 
-        foreach (Project msProject in projects)
+        List<string> dllPaths = [];
+
+        foreach (Project msProject in projects.Select(x => x.WithParseOptions(options)))
         {
+            IEnumerable<string> metaFiles = msProject.MetadataReferences.Select(x => x.Display).Where(File.Exists);
+            dllPaths.AddRange(metaFiles);
+
             List<(Document doc, SyntaxTree tree)> docs = [];
             foreach (Document doc in msProject.Documents)
             {
@@ -39,14 +51,12 @@ public class SolutionNode
                     continue;
                 }
 
-                var syntaxTree = await doc.GetSyntaxTreeAsync();
+                SyntaxTree syntaxTree = await doc.GetSyntaxTreeAsync();
 
                 if (syntaxTree is null)
                 {
                     continue;
                 }
-
-                syntaxTree = SyntaxFactory.SyntaxTree(syntaxTree.GetRoot(), options);
 
                 docs.Add((doc, syntaxTree));
                 syntaxTrees.Add(syntaxTree);
@@ -54,10 +64,13 @@ public class SolutionNode
             projDocs.Add((msProject, docs));
         }
 
+        List<PortableExecutableReference> references = dllPaths
+            .Distinct()
+            .Select(x => MetadataReference.CreateFromFile(x))
+            .ToList();
+
         CSharpCompilation compilation = CSharpCompilation.Create("MyCompilation")
-            .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
-                           MetadataReference.CreateFromFile(typeof(Task).Assembly.Location),
-                           MetadataReference.CreateFromFile(typeof(Task<>).Assembly.Location))
+            .AddReferences(references)
             .AddSyntaxTrees(syntaxTrees);
 
         foreach (var (project, docs) in projDocs)
