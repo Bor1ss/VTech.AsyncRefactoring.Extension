@@ -155,15 +155,21 @@ public sealed class GraphBuilder : CSharpSyntaxWalker
 
     private ISymbol GetSymbol(SyntaxNode node)
     {
+        ISymbol symbol = GetSymbol(node, _options.Document.SemanticModel);
+        if(symbol is not null)
+        {
+            return symbol;
+        }
+
         Func<SemanticModel, ISymbol> symbolGetter = node.GetType().IsSubclassOf(typeof(MemberDeclarationSyntax)) || node.GetType() == typeof(VariableDeclaratorSyntax) || node.GetType() == typeof(LocalFunctionStatementSyntax)
             ? (m) => m.GetDeclaredSymbol(node)
             : (m) => m.GetSymbolInfo(node).Symbol;
 
-        foreach(var semanticModel in _options.AllSemanticModels)
+        foreach (var semanticModel in _options.AllSemanticModels)
         {
             try
             {
-                var symbol = symbolGetter(semanticModel);
+                symbol = symbolGetter(semanticModel);
 
                 if (symbol is null)
                 {
