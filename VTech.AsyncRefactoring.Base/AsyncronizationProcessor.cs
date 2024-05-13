@@ -52,25 +52,25 @@ public sealed class AsyncronizationProcessor
         _node = await _solutionNodeFactory();
     }
 
-    private void DetectIssues(List<MethodNode> processableMethods)
+    private void DetectIssues(List<IFixableNode> processableNodes)
     {
-        foreach (var method in processableMethods)
+        foreach (var node in processableNodes)
         {
-            method.DetectIssues(_rulesSet);
+            node.DetectIssues(_rulesSet);
         }
     }
 
-    private void PrepareFixes(List<MethodNode> processableMethods)
+    private void PrepareFixes(List<IFixableNode> processableNodes)
     {
-        foreach (var method in processableMethods.OrderByDescending(x => x.Depth))
+        foreach (var node in processableNodes.OrderByDescending(x => x.Depth))
         {
-            method.PrepareFixes(_symbolInfoStorage);
+            node.PrepareFixes(_symbolInfoStorage);
         }
     }
 
     public List<VTech.AsyncRefactoring.Base.Changes.ProjectChanges> CollectSuggestedChanges(IMethodSelector methodSelector)
     {
-        List<MethodNode> processableMethods = methodSelector.Select(_node).ToList();
+        List<IFixableNode> processableMethods = methodSelector.Select(_node).ToList();
 
         DetectIssues(processableMethods);
         PrepareFixes(processableMethods);

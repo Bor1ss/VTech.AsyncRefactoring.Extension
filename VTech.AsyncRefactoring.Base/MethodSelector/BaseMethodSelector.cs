@@ -3,7 +3,7 @@
 namespace VTech.AsyncRefactoring.Base.MethodSelector;
 public abstract class BaseMethodSelector : IMethodSelector
 {
-    public abstract IEnumerable<MethodNode> Select(SolutionNode solution);
+    public abstract IEnumerable<IFixableNode> Select(SolutionNode solution);
 
     protected void SelectMethod(HashSet<MethodNode> methodNodes, MethodNode currentMethod)
     {

@@ -1,6 +1,6 @@
 ﻿namespace VTech.AsyncRefactoring.Base.CodeGraph.Nodes;
 
-public abstract class BaseTypeDeclarationNode
+public abstract class BaseTypeDeclarationNode : IDeclarationParent
 {
     protected readonly ISymbol _symbol;
     protected readonly TypeDeclarationSyntax _typeDeclarationSyntax;
@@ -9,6 +9,7 @@ public abstract class BaseTypeDeclarationNode
     protected readonly List<BaseTypeDeclarationNode> _inherits = [];
     protected readonly List<BaseTypeDeclarationNode> _inheritedBy = [];
     protected readonly List<INamedTypeSymbol> _bases = [];
+    protected readonly List<VariableDeclarationNode> _variables = [];
 
     protected BaseTypeDeclarationNode(ISymbol symbol, TypeDeclarationSyntax typeDeclarationSyntax, DocumentNode parent)
     {
@@ -32,6 +33,7 @@ public abstract class BaseTypeDeclarationNode
 
     public string Id => _symbol.Name;
     public IReadOnlyList<MethodNode> Methods => _methods;
+    public IReadOnlyList<VariableDeclarationNode> Variables => _variables;
     internal IReadOnlyList<BaseTypeDeclarationNode> Bases => _inherits;
     internal DocumentNode Parent => _parent;
     internal ISymbol Symbol => _symbol;
@@ -57,6 +59,34 @@ public abstract class BaseTypeDeclarationNode
     private void AddInheritableDescendant(BaseTypeDeclarationNode descendant)
     {
         _inheritedBy.Add(descendant);
+    }
+
+    public void AddVariableDeclaration(VariableDeclarationNode variableDeclaration)
+    {
+        _variables.Add(variableDeclaration);
+    }
+
+    public void GetAllProcessableNodes(HashSet<IFixableNode> result)
+    {
+        foreach (MethodNode method in _methods)
+        {
+            if(!result.Add(method))
+            {
+                continue;
+            }
+
+            method.GetAllProcessableNodes(result);
+        }
+
+        foreach (VariableDeclarationNode variable in _variables)
+        {
+            if (!result.Add(variable))
+            {
+                continue;
+            }
+
+            variable.GetAllProcessableNodes(result);
+        }
     }
 }
 

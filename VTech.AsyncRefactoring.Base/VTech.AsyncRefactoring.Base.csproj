@@ -141,9 +141,12 @@
     <Compile Include="CodeGraph\GraphBuilderOptions.cs" />
     <Compile Include="CodeGraph\Nodes\ClassNode.cs" />
     <Compile Include="CodeGraph\Nodes\DocumentNode.cs" />
+    <Compile Include="CodeGraph\Nodes\IDeclarationParent.cs" />
+    <Compile Include="CodeGraph\Nodes\IFixableNode.cs" />
     <Compile Include="CodeGraph\Nodes\MethodNode.cs" />
     <Compile Include="CodeGraph\Nodes\ProjectNode.cs" />
     <Compile Include="CodeGraph\Nodes\SolutionNode.cs" />
+    <Compile Include="CodeGraph\Nodes\VariableDeclarationNode.cs" />
     <Compile Include="CodeGraph\SymbolInfoStorage.cs" />
     <Compile Include="MethodSelector\AllMethodSelector.cs" />
     <Compile Include="MethodSelector\BaseMethodSelector.cs" />

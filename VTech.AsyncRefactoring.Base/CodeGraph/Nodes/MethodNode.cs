@@ -5,7 +5,7 @@ using VTech.AsyncRefactoring.Base.Utils;
 
 namespace VTech.AsyncRefactoring.Base.CodeGraph.Nodes;
 
-public class MethodNode
+public class MethodNode : FixableNodeBase, IDeclarationParent
 {
     private readonly BaseTypeDeclarationNode _parent;
     private readonly MethodDeclarationSyntaxWrapperBase _methodDeclaration;
@@ -22,18 +22,43 @@ public class MethodNode
     private readonly List<MethodNode> _invokedMethods = [];
     private readonly List<MethodNode> _invokedByMethods = [];
 
-    private readonly List<DetectedIssue> _detectedIssues = [];
     private readonly HashSet<MethodNode> _methodInvocationAsynchronizationNeeded = [];
 
     private readonly MethodNode _parentMethod;
     private readonly List<MethodNode> _internalMethods = [];
 
+    private readonly List<VariableDeclarationNode> _declaredVariables = [];
+    private readonly List<VariableDeclarationNode> _referencedByDeclaredVariables = [];
+
+    private readonly Dictionary<SyntaxNode, SyntaxNode> _nodeReplacements = [];
+
     private MethodNode(IMethodSymbol method, BaseTypeDeclarationNode parent)
+        :base(parent.Parent.SemanticModel)
     {
         _method = method;
         _parent = parent;
 
         Signature = new(method);
+    }
+
+    public MethodNode(SimpleLambdaExpressionSyntax node, IMethodSymbol method, BaseTypeDeclarationNode parent, MethodNode parentMethod)
+        : this(method, parent)
+    {
+        _methodDeclaration = new SimpleLambdaDeclarationSyntaxWrapper(node);
+        _parentMethod = parentMethod;
+        Depth = _parentMethod is not null
+            ? _parentMethod.Depth + 1
+            : 0;
+    }
+
+    public MethodNode(ParenthesizedLambdaExpressionSyntax node, IMethodSymbol method, BaseTypeDeclarationNode parent, MethodNode parentMethod)
+        : this(method, parent)
+    {
+        _methodDeclaration = new ParenthizedLambdaDeclarationSyntaxWrapper(node);
+        _parentMethod = parentMethod;
+        Depth = _parentMethod is not null
+            ? _parentMethod.Depth + 1
+            : 0;
     }
 
     public MethodNode(LocalFunctionStatementSyntax node, IMethodSymbol method, BaseTypeDeclarationNode parent, MethodNode parentMethod)
@@ -56,9 +81,11 @@ public class MethodNode
     public bool IsTaskReturned => _method.ReturnType.IsTaskType();
     public bool IsAsyncNeeded { get; private set; }
     public bool IsAsynchronized { get; private set; }
-    public int Depth { get; private set; } = 0;
+    public override int Depth { get; } = 0;
     public IReadOnlyList<MethodNode> InternalMethods => _internalMethods;
-    public Location Location => _methodDeclaration.Node.GetLocation();
+    public SyntaxNode Node => _methodDeclaration.Node;
+    public override Location Location => _methodDeclaration.Node.GetLocation();
+    public bool NeedsAsynchronization => IsAsyncNeeded || _detectedIssues.Count > 0 || _methodInvocationAsynchronizationNeeded.Count > 0;
 
     public List<MethodNode> GetRelatedMethods()
     {
@@ -80,18 +107,26 @@ public class MethodNode
             .ToList();
     }
 
-    public void AddInternalMethod(MethodNode method)
+    public void AddVariableDeclaration(VariableDeclarationNode variableDeclaration)
+    {
+        _declaredVariables.Add(variableDeclaration);
+    }
+
+    public void AddMethod(MethodNode method)
     {
         _internalMethods.Add(method);
     }
+
     public void AddInvocation(ISymbol invocationSymbol)
     {
         _invocations.Add(invocationSymbol);
     }
+
     private void AddOverrider(MethodNode method)
     {
         _overridedByMethods.Add(method);
     }
+
     private void AddImplementer(MethodNode method)
     {
         _implemenetedByMethods.Add(method);
@@ -134,47 +169,89 @@ public class MethodNode
         _invokedByMethods.Add(method);
     }
 
-    internal void DetectIssues(IReadOnlyList<IRule> rules)
+    protected override bool ShouldSkipFixing 
+        => _method is not IMethodSymbol methodSymbol || _methodDeclaration.Body is null || _isIssueDetectionStarted;
+
+    protected override SyntaxNode Body => _methodDeclaration.Body;
+
+    public void GetAllProcessableNodes(HashSet<IFixableNode> result)
     {
-        if (_method is not IMethodSymbol methodSymbol || _methodDeclaration.Body is null)
+        foreach(MethodNode method in _internalMethods)
         {
-            return;
-        }
-
-        foreach (var rule in rules)
-        {
-            foreach (var expr in _methodDeclaration.Body.DescendantNodes((s) => s.GetType() != typeof(LocalFunctionStatementSyntax)))
+            if (!result.Add(method))
             {
-                ExpressionProcessingResult result = rule.Process(_parent, methodSymbol, expr);
-
-                if (result == ExpressionProcessingResult.LastAdded)
-                {
-                    _detectedIssues.Add(new DetectedIssue(rule, rule.GetApplicableNodes()));
-
-                    rule.Flush();
-                    continue;
-                }
-
-                if (result == ExpressionProcessingResult.Added || result == ExpressionProcessingResult.Skipped)
-                {
-                    continue;
-                }
-
-                rule.Flush();
+                continue;
             }
 
-            rule.Flush();
+            method.GetAllProcessableNodes(result);
         }
 
-        if (_detectedIssues.Count == 0)
+        if(_overidedMethod is not null)
         {
-            return;
+            if (result.Add(_overidedMethod))
+            {
+                _overidedMethod.GetAllProcessableNodes(result);
+            }
         }
 
-        SetAsyncIsNeeded();
+        foreach (MethodNode implementedMethod in _implementedMethods)
+        {
+            if (result.Add(implementedMethod))
+            {
+                implementedMethod.GetAllProcessableNodes(result);
+            }
+        }
+
+        foreach (var caller in _invokedByMethods)
+        {
+            if (result.Add(caller))
+            {
+                caller.GetAllProcessableNodes(result);
+            }
+        }
+
+        foreach (var caller in _invokedMethods)
+        {
+            if (result.Add(caller))
+            {
+                caller.GetAllProcessableNodes(result);
+            }
+        }
+
+        foreach (var caller in _implemenetedByMethods)
+        {
+            if (result.Add(caller))
+            {
+                caller.GetAllProcessableNodes(result);
+            }
+        }
+
+        foreach (var caller in _overridedByMethods)
+        {
+            if (result.Add(caller))
+            {
+                caller.GetAllProcessableNodes(result);
+            }
+        }
+
+        foreach (VariableDeclarationNode variable in _declaredVariables)
+        {
+            if (result.Add(variable))
+            {
+                variable.GetAllProcessableNodes(result);
+            }
+        }
+
+        foreach (VariableDeclarationNode variable in _referencedByDeclaredVariables)
+        {
+            if (result.Add(variable))
+            {
+                variable.GetAllProcessableNodes(result);
+            }
+        }
     }
 
-    private void SetAsyncIsNeeded(MethodNode method = null)
+    public override void SetAsyncIsNeeded(MethodNode method = null)
     {
         if (method is not null)
         {
@@ -209,11 +286,14 @@ public class MethodNode
         {
             caller.SetAsyncIsNeeded();
         }
+
+        foreach (var _referencedByDeclaredVariable in _referencedByDeclaredVariables)
+        {
+            _referencedByDeclaredVariable.SetAsyncIsNeeded();
+        }
     }
 
-    public bool NeedsAsynchronization => IsAsyncNeeded || _detectedIssues.Count > 0 || _methodInvocationAsynchronizationNeeded.Count > 0;
-
-    internal void PrepareFixes(SymbolInfoStorage symbolInfoStorage)
+    public override void PrepareFixes(SymbolInfoStorage symbolInfoStorage)
     {
         if (!NeedsAsynchronization || IsAsynchronized)
         {
@@ -231,7 +311,7 @@ public class MethodNode
 
         bool isChanged = false;
 
-        if (!_method.Name.EndsWith("Async", StringComparison.InvariantCultureIgnoreCase) && !_method.Name.Equals("main", StringComparison.CurrentCultureIgnoreCase))
+        if (_methodDeclaration.CanUpdateName && !_method.Name.EndsWith("Async", StringComparison.InvariantCultureIgnoreCase) && !_method.Name.Equals("main", StringComparison.CurrentCultureIgnoreCase))
         {
             var newMethodName = _method.Name + "Async";
 
@@ -252,7 +332,7 @@ public class MethodNode
             isChanged = true;
         }
 
-        if (!IsTaskReturned)
+        if (_methodDeclaration.CanUpdateReturnType && !IsTaskReturned)
         {
             var specType = "Task";
 
@@ -331,7 +411,6 @@ public class MethodNode
         }
     }
 
-    private readonly Dictionary<SyntaxNode, SyntaxNode> _nodeReplacements = [];
     private void Replace(SyntaxNode old, SyntaxNode @new)
     {
         _nodeReplacements.Add(old, @new);
@@ -420,14 +499,102 @@ public class MethodNode
     abstract class MethodDeclarationSyntaxWrapperBase
     {
         public abstract SyntaxNode Node { get; }
-        public abstract BlockSyntax Body { get; }
+        public abstract CSharpSyntaxNode Body { get; }
         public abstract SyntaxToken Identifier { get; }
         public abstract TypeSyntax ReturnType { get; }
         public abstract SyntaxTokenList Modifiers { get; }
 
+        public bool CanUpdateReturnType { get; }
+        public bool CanUpdateName { get; }
+
+        protected MethodDeclarationSyntaxWrapperBase(bool canUpdateReturnType, bool canUpdateName)
+        {
+            CanUpdateReturnType = canUpdateReturnType;
+            CanUpdateName = canUpdateName;
+        }
+
         public abstract MethodDeclarationSyntaxWrapperBase ReplaceSyntax(Dictionary<SyntaxNode, SyntaxNode> nodeReplacements, Dictionary<SyntaxToken, SyntaxToken> tokenReplacements, Dictionary<SyntaxTrivia, SyntaxTrivia> triviaReplacements);
 
         public abstract MethodDeclarationSyntaxWrapperBase AddModifiers(SyntaxToken modifier);
+    }
+
+    class SimpleLambdaDeclarationSyntaxWrapper : MethodDeclarationSyntaxWrapperBase
+    {
+        private readonly SimpleLambdaExpressionSyntax _simpleLambdaExpressionSyntax;
+
+        public override SyntaxNode Node => _simpleLambdaExpressionSyntax;
+        public override CSharpSyntaxNode Body => _simpleLambdaExpressionSyntax.Body;
+        public override SyntaxToken Identifier { get; }
+        public override TypeSyntax ReturnType { get; }// => _simpleLambdaExpressionSyntax.ReturnType;
+        public override SyntaxTokenList Modifiers => _simpleLambdaExpressionSyntax.Modifiers;
+
+        public SimpleLambdaDeclarationSyntaxWrapper(SimpleLambdaExpressionSyntax simpleLambdaExpressionSyntax)
+            : base(false, false)
+        {
+            _simpleLambdaExpressionSyntax = simpleLambdaExpressionSyntax;
+        }
+
+        public override MethodDeclarationSyntaxWrapperBase AddModifiers(SyntaxToken modifier)
+        {
+            modifier = modifier.WithLeadingTrivia(ReturnType.GetLeadingTrivia());
+
+            var newReturnType = ReturnType.WithLeadingTrivia(SyntaxFactory.Whitespace(" "));
+
+            SimpleLambdaExpressionSyntax newSimpleLambdaExpressionSyntax = _simpleLambdaExpressionSyntax
+                .AddModifiers(modifier);
+
+            return new SimpleLambdaDeclarationSyntaxWrapper(newSimpleLambdaExpressionSyntax);
+        }
+
+        public override MethodDeclarationSyntaxWrapperBase ReplaceSyntax(Dictionary<SyntaxNode, SyntaxNode> nodeReplacements, Dictionary<SyntaxToken, SyntaxToken> tokenReplacements, Dictionary<SyntaxTrivia, SyntaxTrivia> triviaReplacements)
+        {
+            SimpleLambdaExpressionSyntax newSimpleLambdaExpressionSyntax = _simpleLambdaExpressionSyntax.ReplaceSyntax(
+            nodeReplacements.Keys, (a, _) => nodeReplacements[a],
+            tokenReplacements.Keys, (a, _) => tokenReplacements[a],
+            triviaReplacements?.Keys, (a, _) => triviaReplacements[a]);
+
+            return new SimpleLambdaDeclarationSyntaxWrapper(newSimpleLambdaExpressionSyntax);
+        }
+    }
+
+    class ParenthizedLambdaDeclarationSyntaxWrapper : MethodDeclarationSyntaxWrapperBase
+    {
+        private readonly ParenthesizedLambdaExpressionSyntax _parenthesizedLambdaExpressionSyntax;
+
+        public override SyntaxNode Node => _parenthesizedLambdaExpressionSyntax;
+        public override CSharpSyntaxNode Body => _parenthesizedLambdaExpressionSyntax.Body;
+        public override SyntaxToken Identifier { get; }
+        public override TypeSyntax ReturnType => _parenthesizedLambdaExpressionSyntax.ReturnType;
+        public override SyntaxTokenList Modifiers => _parenthesizedLambdaExpressionSyntax.Modifiers;
+
+        public ParenthizedLambdaDeclarationSyntaxWrapper(ParenthesizedLambdaExpressionSyntax parenthesizedLambdaExpressionSyntax)
+            : base(false, false)
+        {
+            _parenthesizedLambdaExpressionSyntax = parenthesizedLambdaExpressionSyntax;
+        }
+
+        public override MethodDeclarationSyntaxWrapperBase AddModifiers(SyntaxToken modifier)
+        {
+            modifier = modifier.WithLeadingTrivia(ReturnType.GetLeadingTrivia());
+
+            var newReturnType = ReturnType.WithLeadingTrivia(SyntaxFactory.Whitespace(" "));
+
+            ParenthesizedLambdaExpressionSyntax newParenthesizedLambdaExpressionSyntax = _parenthesizedLambdaExpressionSyntax
+                .WithReturnType(newReturnType)
+                .AddModifiers(modifier);
+
+            return new ParenthizedLambdaDeclarationSyntaxWrapper(newParenthesizedLambdaExpressionSyntax);
+        }
+
+        public override MethodDeclarationSyntaxWrapperBase ReplaceSyntax(Dictionary<SyntaxNode, SyntaxNode> nodeReplacements, Dictionary<SyntaxToken, SyntaxToken> tokenReplacements, Dictionary<SyntaxTrivia, SyntaxTrivia> triviaReplacements)
+        {
+            ParenthesizedLambdaExpressionSyntax newParenthesizedLambdaExpressionSyntax = _parenthesizedLambdaExpressionSyntax.ReplaceSyntax(
+            nodeReplacements.Keys, (a, _) => nodeReplacements[a],
+            tokenReplacements.Keys, (a, _) => tokenReplacements[a],
+            triviaReplacements?.Keys, (a, _) => triviaReplacements[a]);
+
+            return new ParenthizedLambdaDeclarationSyntaxWrapper(newParenthesizedLambdaExpressionSyntax);
+        }
     }
 
     class MethodDeclarationSyntaxWrapper : MethodDeclarationSyntaxWrapperBase
@@ -435,12 +602,13 @@ public class MethodNode
         private readonly MethodDeclarationSyntax _methodDeclarationSyntax;
 
         public MethodDeclarationSyntaxWrapper(MethodDeclarationSyntax methodDeclarationSyntax)
+            : base(true, true)
         {
             _methodDeclarationSyntax = methodDeclarationSyntax;
         }
 
         public override SyntaxNode Node => _methodDeclarationSyntax;
-        public override BlockSyntax Body => _methodDeclarationSyntax.Body;
+        public override CSharpSyntaxNode Body => _methodDeclarationSyntax.Body;
         public override SyntaxToken Identifier => _methodDeclarationSyntax.Identifier;
         public override TypeSyntax ReturnType => _methodDeclarationSyntax.ReturnType;
         public override SyntaxTokenList Modifiers => _methodDeclarationSyntax.Modifiers;
@@ -474,12 +642,13 @@ public class MethodNode
         private readonly LocalFunctionStatementSyntax _localFunctionStatementSyntax;
 
         public LocalMethodDeclarationSyntaxWrapper(LocalFunctionStatementSyntax localFunctionStatementSyntax)
+            : base(true, true)
         {
             _localFunctionStatementSyntax = localFunctionStatementSyntax;
         }
 
         public override SyntaxNode Node => _localFunctionStatementSyntax;
-        public override BlockSyntax Body => _localFunctionStatementSyntax.Body;
+        public override CSharpSyntaxNode Body => _localFunctionStatementSyntax.Body;
         public override SyntaxToken Identifier => _localFunctionStatementSyntax.Identifier;
         public override TypeSyntax ReturnType => _localFunctionStatementSyntax.ReturnType;
         public override SyntaxTokenList Modifiers => _localFunctionStatementSyntax.Modifiers;
@@ -506,18 +675,6 @@ public class MethodNode
 
             return new LocalMethodDeclarationSyntaxWrapper(newLocalMethodDeclaration);
         }
-    }
-
-    class DetectedIssue
-    {
-        public DetectedIssue(IRule Rule, List<SyntaxNode> Nodes)
-        {
-            this.Rule = Rule;
-            this.Nodes = Nodes;
-        }
-
-        public IRule Rule { get; }
-        public List<SyntaxNode> Nodes { get; }
     }
 }
 

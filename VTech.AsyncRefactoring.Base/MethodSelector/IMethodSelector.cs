@@ -3,5 +3,5 @@
 namespace VTech.AsyncRefactoring.Base.MethodSelector;
 public interface IMethodSelector
 {
-    IEnumerable<MethodNode> Select(SolutionNode solution);
+    IEnumerable<IFixableNode> Select(SolutionNode solution);
 }

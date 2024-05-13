@@ -14,29 +14,25 @@ public class CoursorRelatedMethodSelector : BaseMethodSelector
         _line = line;
     }
 
-    public override IEnumerable<MethodNode> Select(SolutionNode solution)
+    public override IEnumerable<IFixableNode> Select(SolutionNode solution)
     {
         var project = solution.Projects.First(x => x.Id == _project);
         var doc = project.Documents.First(x => x.Id == _file);
 
-        HashSet<MethodNode> result = [];
+        HashSet<IFixableNode> fileProcessableNodes = [];
 
-        List<MethodNode> fileMethods = doc.TypeDeclarationNodes
-            .SelectMany(x => x.Methods)
-            .ToList();
+        foreach(var type in doc.TypeDeclarationNodes)
+        {
+            type.GetAllProcessableNodes(fileProcessableNodes);
+        }
 
-        List<MethodNode> selectedMethods = fileMethods
+        IEnumerable<IFixableNode> result = fileProcessableNodes
             .Where(x => Intersects(x.Location, _line))
             .ToList();
 
-        if(!selectedMethods.Any())
+        if(!result.Any())
         {
-            selectedMethods = fileMethods;
-        }
-
-        foreach (var method in selectedMethods)
-        {
-            SelectMethod(result, method);
+            result = fileProcessableNodes.ToList();
         }
 
         return result;

@@ -21,12 +21,12 @@ internal class ResultRule : RuleBase
         return (nodes[0], newBlock);
     }
 
-    protected override Func<BaseTypeDeclarationNode, IMethodSymbol, SyntaxNode, bool>[] GetExpressionCheckers()
+    protected override Func<SemanticModel, SyntaxNode, bool>[] GetExpressionCheckers()
     {
-        Func<BaseTypeDeclarationNode, IMethodSymbol, SyntaxNode, bool>[] result =
+        Func<SemanticModel, SyntaxNode, bool>[] result =
         [
-            (parent, methodSymbol, node) => node is MemberAccessExpressionSyntax maes && maes.Name.ToString() == "Result",
-            (parent, methodSymbol, node) => IsNodeOfTaskType(parent, methodSymbol, node)
+            (_, node) => node is MemberAccessExpressionSyntax maes && maes.Name.ToString() == "Result",
+            IsNodeOfTaskType
         ];
 
         return result;

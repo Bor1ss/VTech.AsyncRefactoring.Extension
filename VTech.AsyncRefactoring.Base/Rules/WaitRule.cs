@@ -15,22 +15,21 @@ internal class WaitRule : RuleBase
         ExpressionSyntax centralNode = nodes.Last() as ExpressionSyntax;
         centralNode = centralNode.WithLeadingTrivia(SyntaxFactory.Whitespace(" "));
         AwaitExpressionSyntax awaitExpression = SyntaxFactory.AwaitExpression(centralNode);
-        SyntaxNode expressionStatement = SyntaxFactory.ExpressionStatement(awaitExpression);
-        SyntaxNode newBlock = expressionStatement.WithTrailingTrivia(nodes[0].GetTrailingTrivia()).WithLeadingTrivia(nodes[0].GetLeadingTrivia());
+        //SyntaxNode expressionStatement = SyntaxFactory.ExpressionStatement(awaitExpression);
+        SyntaxNode newBlock = awaitExpression.WithTrailingTrivia(nodes[0].GetTrailingTrivia()).WithLeadingTrivia(nodes[0].GetLeadingTrivia());
 
         return (nodes[0], newBlock);
     }
 
     // Return a list of expressions that should be checked for this rule. 
     // This rule is to find AnyFunc().Wait() where AnyFunc() returns a Task.
-    protected override Func<BaseTypeDeclarationNode, IMethodSymbol, SyntaxNode, bool>[] GetExpressionCheckers()
+    protected override Func<SemanticModel, SyntaxNode, bool>[] GetExpressionCheckers()
     {
-        Func<BaseTypeDeclarationNode, IMethodSymbol, SyntaxNode, bool>[] result =
+        Func<SemanticModel, SyntaxNode, bool>[] result =
         [
-            (parent, methodSymbol, node) => node is ExpressionStatementSyntax,
-            (parent, methodSymbol, node) => node is InvocationExpressionSyntax,
-            (parent, methodSymbol, node) => node is MemberAccessExpressionSyntax maes && maes.Name.ToString() == "Wait",
-            (parent, methodSymbol, node) => IsNodeOfTaskType(parent, methodSymbol, node)
+            (_, node) => node is InvocationExpressionSyntax,
+            (_, node) => node is MemberAccessExpressionSyntax maes && maes.Name.ToString() == "Wait",
+            IsNodeOfTaskType
         ];
 
         return result;

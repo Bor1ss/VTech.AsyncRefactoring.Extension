@@ -3,11 +3,19 @@
 namespace VTech.AsyncRefactoring.Base.MethodSelector;
 public class AllMethodSelector : IMethodSelector
 {
-    public IEnumerable<MethodNode> Select(SolutionNode solution)
+    public IEnumerable<IFixableNode> Select(SolutionNode solution)
     {
-        return solution.Projects
+        HashSet<IFixableNode> result = [];
+
+        IEnumerable<BaseTypeDeclarationNode> allTypes = solution.Projects
             .SelectMany(x => x.Documents)
-            .SelectMany(x => x.TypeDeclarationNodes)
-            .SelectMany(x => x.Methods);
+            .SelectMany(x => x.TypeDeclarationNodes);
+
+        foreach (BaseTypeDeclarationNode type in allTypes)
+        {
+            type.GetAllProcessableNodes(result);
+        }
+
+        return result;
     }
 }

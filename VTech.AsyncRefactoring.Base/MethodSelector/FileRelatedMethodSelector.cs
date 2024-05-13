@@ -18,17 +18,16 @@ public class FileRelatedMethodSelector : BaseMethodSelector
         _file = file;
     }
 
-    public override IEnumerable<MethodNode> Select(SolutionNode solution)
+    public override IEnumerable<IFixableNode> Select(SolutionNode solution)
     {
         var project = solution.Projects.First(x => x.Id == _project);
         var doc = project.Documents.First(x => x.Id == _file);
 
-        HashSet<MethodNode> result = [];
+        HashSet<IFixableNode> result = [];
 
-        var fileMethods = doc.TypeDeclarationNodes.SelectMany(x => x.Methods);
-        foreach (var method in fileMethods)
+        foreach (var type in doc.TypeDeclarationNodes)
         {
-            SelectMethod(result, method);
+            type.GetAllProcessableNodes(result);
         }
 
         return result;
