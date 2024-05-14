@@ -1,4 +1,7 @@
-﻿using VTech.AsyncRefactoring.Base.CodeGraph;
+﻿using System.Diagnostics;
+using System.Xml.Linq;
+
+using VTech.AsyncRefactoring.Base.CodeGraph;
 using VTech.AsyncRefactoring.Base.CodeGraph.Nodes;
 
 namespace VTech.AsyncRefactoring;
@@ -165,7 +168,35 @@ public sealed class GraphBuilder : CSharpSyntaxWalker
             ? (m) => m.GetDeclaredSymbol(node)
             : (m) => m.GetSymbolInfo(node).Symbol;
 
-        foreach (var semanticModel in _options.AllSemanticModels)
+        string name = string.Empty;
+        if (node is MemberAccessExpressionSyntax memberAccessExpression)
+        {
+            name = memberAccessExpression.Name.Identifier.ValueText;
+        }
+        else if (node is MemberBindingExpressionSyntax memberBindingExpression)
+        {
+            name = memberBindingExpression.Name.Identifier.ValueText;
+        }
+        else if (node is IdentifierNameSyntax identifierNameSyntax)
+        {
+            name = identifierNameSyntax.Identifier.ValueText;
+        }
+        else if (node is GenericNameSyntax genericName)
+        {
+            name = genericName.Identifier.ValueText;
+        }
+        else
+        {
+            //Debugger.Break();
+            return null;
+        }
+
+        if(!_options.MethodSemanticModelsMap.TryGetValue(name, out var methodSemanticModels))
+        {
+            return null;
+        }
+
+        foreach (var semanticModel in methodSemanticModels)
         {
             try
             {

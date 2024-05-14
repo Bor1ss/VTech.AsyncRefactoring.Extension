@@ -1,7 +1,10 @@
-﻿using Microsoft.CodeAnalysis.Text;
+﻿using System.Diagnostics;
+
+using Microsoft.CodeAnalysis.Text;
 
 namespace VTech.AsyncRefactoring.Base.CodeGraph.Nodes;
 
+[DebuggerDisplay("{_document.Name}")]
 public class DocumentNode
 {
     private readonly ProjectNode _parent;
@@ -26,7 +29,7 @@ public class DocumentNode
         _customUsingAdded = customUsingAdded;
     }
 
-    public async Task InitMethodsAsync(List<SemanticModel> allSemanticModels, SymbolInfoStorage symbolInfoStorage)
+    public async Task InitMethodsAsync(List<SemanticModel> allSemanticModels, SymbolInfoStorage symbolInfoStorage, Dictionary<string, HashSet<SemanticModel>> methodSemanticModelsMap)
     {
         await Task.Yield();
 
@@ -36,7 +39,8 @@ public class DocumentNode
             Model = _semanticModel,
             Document = this,
             AllSemanticModels = allSemanticModels,
-            SymbolInfoStorage = symbolInfoStorage
+            SymbolInfoStorage = symbolInfoStorage,
+            MethodSemanticModelsMap = methodSemanticModelsMap
         };
 
         GraphBuilder graphBuilder = new(options);
@@ -97,6 +101,17 @@ public class DocumentNode
             _triviaReplacements.Keys, (a, _) => _triviaReplacements[a]);
 
         SyntaxTree changedTree = changedRoot.SyntaxTree;
+
+        UsingDirectiveSyntax systemThreadingTaskUsingDirective = changedRoot
+            .ChildNodes()
+            .OfType<UsingDirectiveSyntax>()
+            .FirstOrDefault(x => x.NamespaceOrType.Equals("System.Threading.Tasks"));
+
+        if(systemThreadingTaskUsingDirective is null && !_customUsingAdded)
+        {
+            var newSourceText = changedRoot.SyntaxTree.GetText().WithChanges(new TextChange(new TextSpan(0, 0), $"using System.Threading.Tasks;{Environment.NewLine}"));
+            changedTree = changedRoot.SyntaxTree.WithChangedText(newSourceText);
+        }
 
         List<TextChange> changes = changedTree
             .GetChanges(_tree)

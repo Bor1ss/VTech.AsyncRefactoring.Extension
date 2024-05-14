@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System.Diagnostics;
+using System.IO;
 using System.Text.RegularExpressions;
 
 using Microsoft.CodeAnalysis.Text;
@@ -99,9 +100,45 @@ public class SolutionNode
         List<DocumentNode> allDocuments = _projects.SelectMany(x => x.Documents).ToList();
         List<SemanticModel> allSemanticModels = allDocuments.Select(d => d.SemanticModel).ToList();
 
+        Dictionary<string, HashSet<SemanticModel>> methodSemanticModelsMap = [];
         foreach (DocumentNode document in allDocuments)
         {
-            await document.InitMethodsAsync(allSemanticModels, symbolInfoStorage);
+            foreach(MethodDeclarationSyntax methodDeclaration in document.Tree.GetRoot().DescendantNodes().OfType<MethodDeclarationSyntax>())
+            {
+                string methodName = methodDeclaration.Identifier.Text;
+                if (string.IsNullOrWhiteSpace(methodName) || string.Equals(methodName, "ToString"))
+                {
+                    continue;
+                }
+
+                if(!methodSemanticModelsMap.ContainsKey(methodName))
+                {
+                    methodSemanticModelsMap[methodName] = [];
+                }
+
+                methodSemanticModelsMap[methodName].Add(document.SemanticModel);
+            }
+
+            foreach(LocalFunctionStatementSyntax localFunctionStatement in document.Tree.GetRoot().DescendantNodes().OfType<LocalFunctionStatementSyntax>())
+            {
+                string methodName = localFunctionStatement.Identifier.Text;
+                if (string.IsNullOrWhiteSpace(methodName) || string.Equals(methodName, "ToString"))
+                {
+                    continue;
+                }
+
+                if(!methodSemanticModelsMap.ContainsKey(methodName))
+                {
+                    methodSemanticModelsMap[methodName] = [];
+                }
+
+                methodSemanticModelsMap[methodName].Add(document.SemanticModel);
+            }
+        }
+
+        foreach (DocumentNode document in allDocuments)
+        {
+            await document.InitMethodsAsync(allSemanticModels, symbolInfoStorage, methodSemanticModelsMap);
         }
     }
 
@@ -133,7 +170,8 @@ public class SolutionNode
             .ToList();
 
         Dictionary<ISymbol, BaseTypeDeclarationNode> typeSymbolMap = allTypes
-            .ToDictionary(x => x.Symbol, x => x, SymbolEqualityComparer.Default);
+            .GroupBy(x => x.Symbol, SymbolEqualityComparer.Default)
+            .ToDictionary(x => x.Key, x => x.First(), SymbolEqualityComparer.Default);
 
         foreach (var typeSymbol in allTypes)
         {

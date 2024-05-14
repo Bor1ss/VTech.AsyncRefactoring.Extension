@@ -1,10 +1,15 @@
 ﻿using System.Collections.Immutable;
+using System.Diagnostics;
+
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 using VTech.AsyncRefactoring.Base.Rules;
 using VTech.AsyncRefactoring.Base.Utils;
 
 namespace VTech.AsyncRefactoring.Base.CodeGraph.Nodes;
 
+[DebuggerDisplay("{_methodDeclaration.Identifier.Text}")]
 public class MethodNode
 {
     private readonly BaseTypeDeclarationNode _parent;
@@ -101,8 +106,15 @@ public class MethodNode
     {
         if (_method.OverriddenMethod is not null)
         {
-            _overidedMethod = symbolMethodMap[_method.OverriddenMethod];
-            _overidedMethod?.AddOverrider(this);
+            if(symbolMethodMap.TryGetValue( _method.OverriddenMethod, out var overidedMethod))
+            {
+                _overidedMethod = overidedMethod;
+                _overidedMethod?.AddOverrider(this);
+            }
+            else
+            {
+                //FORBID asynchronization - 3rd-party impelmentation
+            }
         }
         else
         {
@@ -252,13 +264,16 @@ public class MethodNode
             isChanged = true;
         }
 
+        bool isEnumerableReturned = false;
         if (!IsTaskReturned)
         {
             var specType = "Task";
 
             if (!_method.ReturnType.Name.Equals("void", StringComparison.InvariantCultureIgnoreCase))
             {
-                specType = $"{specType}<{_method.ReturnType.Name}>";
+                bool isFullyQualified = _methodDeclaration.ReturnType.IsKind(SyntaxKind.QualifiedName);
+                specType = $"{specType}<{_methodDeclaration.ReturnType}>";
+                isEnumerableReturned = specType.Contains("IEnumerable<");
             }
 
             var newReturnType = SyntaxFactory.ParseTypeName(specType)
@@ -313,6 +328,11 @@ public class MethodNode
 
         var newMethodDeclaration = _methodDeclaration.ReplaceSyntax(nodeReplacements, tokenReplacements, null);
 
+        if (isEnumerableReturned && newMethodDeclaration.Body is not null)
+        {
+            newMethodDeclaration = ReplaceYield(newMethodDeclaration);
+        }
+
         if (_methodDeclaration.Body is not null && !newMethodDeclaration.Modifiers.Any(x => x.Text == "async"))
         {
             newMethodDeclaration = newMethodDeclaration.AddModifiers(SyntaxFactory.Token(SyntaxKind.AsyncKeyword));
@@ -329,6 +349,89 @@ public class MethodNode
                 _parent.Parent.Replace(_methodDeclaration.Node, newMethodDeclaration.Node);
             }
         }
+    }
+
+    private MethodDeclarationSyntaxWrapperBase ReplaceYield(MethodDeclarationSyntaxWrapperBase methodDeclaration)
+    {
+        List<YieldStatementSyntax> yieldStatements = methodDeclaration.Body.DescendantNodes((s) => s.GetType() != typeof(LocalFunctionStatementSyntax)).OfType<YieldStatementSyntax>().ToList();
+        if (yieldStatements.Count == 0)
+        {
+            return methodDeclaration;
+        }
+
+        string declaredListName = $"{_method.Name}Result";
+        TypeArgumentListSyntax typeArgumentList = methodDeclaration.Node.DescendantNodes().OfType<TypeArgumentListSyntax>().Skip(1).First();
+        GenericNameSyntax resultListTypeSyntax = SyntaxFactory.GenericName(SyntaxFactory.Identifier("List"), typeArgumentList);
+        LocalDeclarationStatementSyntax listDeclarationSyntax = SyntaxFactory.LocalDeclarationStatement(
+                SyntaxFactory.VariableDeclaration(resultListTypeSyntax, SyntaxFactory.SingletonSeparatedList<VariableDeclaratorSyntax>(
+                                SyntaxFactory.VariableDeclarator(SyntaxFactory.Identifier(declaredListName).WithTrailingTrivia(SyntaxFactory.Space), null, 
+                                    SyntaxFactory.EqualsValueClause(
+                                            SyntaxFactory.ObjectCreationExpression(SyntaxFactory.Token(SyntaxKind.NewKeyword).WithTrailingTrivia(SyntaxFactory.Space), resultListTypeSyntax, SyntaxFactory.ArgumentList(), null).WithLeadingTrivia(SyntaxFactory.Space)
+                                        )    
+                                )
+                            )
+                    )
+            ).WithTrailingTrivia(SyntaxFactory.LineFeed);
+
+        SyntaxNode returnStatementSyntax = SyntaxFactory.ReturnStatement(SyntaxFactory.IdentifierName(declaredListName).WithLeadingTrivia(SyntaxFactory.Space)).WithTrailingTrivia(SyntaxFactory.LineFeed);
+
+        SyntaxNode firstNode = methodDeclaration.Body.ChildNodes().First();
+        listDeclarationSyntax = listDeclarationSyntax.WithLeadingTrivia(firstNode.GetLeadingTrivia());
+
+        methodDeclaration = methodDeclaration
+            .InsertChildBefore(firstNode, [listDeclarationSyntax]);
+
+        SyntaxNode lastNode = methodDeclaration.Body.ChildNodes().Last();
+        returnStatementSyntax = returnStatementSyntax.WithLeadingTrivia(lastNode.GetLeadingTrivia());
+
+        methodDeclaration = methodDeclaration
+            .InsertChildAfter(lastNode, [returnStatementSyntax]);
+
+        yieldStatements = methodDeclaration.Body.DescendantNodes((s) => s.GetType() != typeof(LocalFunctionStatementSyntax)).OfType<YieldStatementSyntax>().ToList();
+
+        Dictionary<SyntaxNode, SyntaxNode> nodeReplacements = [];
+
+        foreach (YieldStatementSyntax yieldStatement in yieldStatements)
+        {
+            if (yieldStatement.IsKind(SyntaxKind.YieldBreakStatement))
+            {
+                nodeReplacements.Add(yieldStatement, SyntaxFactory.BreakStatement());
+
+                continue;
+            }
+
+            ExpressionSyntax expressionElement = yieldStatement.DescendantNodes().ElementAt(0) as ExpressionSyntax;
+            ArgumentSyntax argumentSyntax = null;
+            if (expressionElement is not null)
+            {
+                argumentSyntax = SyntaxFactory.Argument(expressionElement);
+            }
+            else
+            {
+                Debugger.Break();
+            }
+
+            ExpressionStatementSyntax expressionStatement = SyntaxFactory.ExpressionStatement(
+                    SyntaxFactory.InvocationExpression(
+                        SyntaxFactory.MemberAccessExpression(
+                            SyntaxKind.SimpleMemberAccessExpression,
+                            SyntaxFactory.IdentifierName(declaredListName),
+                            SyntaxFactory.IdentifierName("Add")
+                        ),
+                        SyntaxFactory.ArgumentList(
+                            SyntaxFactory.SingletonSeparatedList<ArgumentSyntax>(
+                                argumentSyntax
+                            )
+                        )
+                    )
+                )
+                .WithLeadingTrivia(yieldStatement.GetLeadingTrivia())
+                .WithTrailingTrivia(yieldStatement.GetTrailingTrivia());
+
+            nodeReplacements.Add(yieldStatement, expressionStatement);
+        }
+
+        return methodDeclaration.ReplaceSyntax(nodeReplacements, null, null);
     }
 
     private readonly Dictionary<SyntaxNode, SyntaxNode> _nodeReplacements = [];
@@ -420,7 +523,7 @@ public class MethodNode
     abstract class MethodDeclarationSyntaxWrapperBase
     {
         public abstract SyntaxNode Node { get; }
-        public abstract BlockSyntax Body { get; }
+        public abstract CSharpSyntaxNode Body { get; }
         public abstract SyntaxToken Identifier { get; }
         public abstract TypeSyntax ReturnType { get; }
         public abstract SyntaxTokenList Modifiers { get; }
@@ -428,6 +531,9 @@ public class MethodNode
         public abstract MethodDeclarationSyntaxWrapperBase ReplaceSyntax(Dictionary<SyntaxNode, SyntaxNode> nodeReplacements, Dictionary<SyntaxToken, SyntaxToken> tokenReplacements, Dictionary<SyntaxTrivia, SyntaxTrivia> triviaReplacements);
 
         public abstract MethodDeclarationSyntaxWrapperBase AddModifiers(SyntaxToken modifier);
+
+        public abstract MethodDeclarationSyntaxWrapperBase InsertChildBefore(SyntaxNode nodeInList, IEnumerable<SyntaxNode> newNodes);
+        public abstract MethodDeclarationSyntaxWrapperBase InsertChildAfter(SyntaxNode nodeInList, IEnumerable<SyntaxNode> newNodes);
     }
 
     class MethodDeclarationSyntaxWrapper : MethodDeclarationSyntaxWrapperBase
@@ -440,7 +546,9 @@ public class MethodNode
         }
 
         public override SyntaxNode Node => _methodDeclarationSyntax;
-        public override BlockSyntax Body => _methodDeclarationSyntax.Body;
+        public override CSharpSyntaxNode Body => _methodDeclarationSyntax.Body is not null
+            ? _methodDeclarationSyntax.Body
+            : _methodDeclarationSyntax.ExpressionBody;
         public override SyntaxToken Identifier => _methodDeclarationSyntax.Identifier;
         public override TypeSyntax ReturnType => _methodDeclarationSyntax.ReturnType;
         public override SyntaxTokenList Modifiers => _methodDeclarationSyntax.Modifiers;
@@ -458,11 +566,25 @@ public class MethodNode
             return new MethodDeclarationSyntaxWrapper(newMethodDeclaration);
         }
 
+        public override MethodDeclarationSyntaxWrapperBase InsertChildBefore(SyntaxNode nodeInList, IEnumerable<SyntaxNode> newNodes)
+        {
+            MethodDeclarationSyntax newMethodDeclaration = _methodDeclarationSyntax.InsertNodesBefore(nodeInList, newNodes);
+
+            return new MethodDeclarationSyntaxWrapper(newMethodDeclaration);
+        }
+
+        public override MethodDeclarationSyntaxWrapperBase InsertChildAfter(SyntaxNode nodeInList, IEnumerable<SyntaxNode> newNodes)
+        {
+            MethodDeclarationSyntax newMethodDeclaration = _methodDeclarationSyntax.InsertNodesAfter(nodeInList, newNodes);
+
+            return new MethodDeclarationSyntaxWrapper(newMethodDeclaration);
+        }
+
         public override MethodDeclarationSyntaxWrapperBase ReplaceSyntax(Dictionary<SyntaxNode, SyntaxNode> nodeReplacements, Dictionary<SyntaxToken, SyntaxToken> tokenReplacements, Dictionary<SyntaxTrivia, SyntaxTrivia> triviaReplacements)
         {
             MethodDeclarationSyntax newMethodDeclaration = _methodDeclarationSyntax.ReplaceSyntax(
-            nodeReplacements.Keys, (a, _) => nodeReplacements[a],
-            tokenReplacements.Keys, (a, _) => tokenReplacements[a],
+            nodeReplacements?.Keys, (a, _) => nodeReplacements[a],
+            tokenReplacements?.Keys, (a, _) => tokenReplacements[a],
             triviaReplacements?.Keys, (a, _) => triviaReplacements[a]);
 
             return new MethodDeclarationSyntaxWrapper(newMethodDeclaration);
@@ -479,7 +601,9 @@ public class MethodNode
         }
 
         public override SyntaxNode Node => _localFunctionStatementSyntax;
-        public override BlockSyntax Body => _localFunctionStatementSyntax.Body;
+        public override CSharpSyntaxNode Body => _localFunctionStatementSyntax.Body is not null
+            ? _localFunctionStatementSyntax.Body
+            : _localFunctionStatementSyntax.ExpressionBody;
         public override SyntaxToken Identifier => _localFunctionStatementSyntax.Identifier;
         public override TypeSyntax ReturnType => _localFunctionStatementSyntax.ReturnType;
         public override SyntaxTokenList Modifiers => _localFunctionStatementSyntax.Modifiers;
@@ -500,9 +624,23 @@ public class MethodNode
         public override MethodDeclarationSyntaxWrapperBase ReplaceSyntax(Dictionary<SyntaxNode, SyntaxNode> nodeReplacements, Dictionary<SyntaxToken, SyntaxToken> tokenReplacements, Dictionary<SyntaxTrivia, SyntaxTrivia> triviaReplacements)
         {
             LocalFunctionStatementSyntax newLocalMethodDeclaration = _localFunctionStatementSyntax.ReplaceSyntax(
-            nodeReplacements.Keys, (a, _) => nodeReplacements[a],
-            tokenReplacements.Keys, (a, _) => tokenReplacements[a],
+            nodeReplacements?.Keys, (a, _) => nodeReplacements[a],
+            tokenReplacements?.Keys, (a, _) => tokenReplacements[a],
             triviaReplacements?.Keys, (a, _) => triviaReplacements[a]);
+
+            return new LocalMethodDeclarationSyntaxWrapper(newLocalMethodDeclaration);
+        }
+
+        public override MethodDeclarationSyntaxWrapperBase InsertChildBefore(SyntaxNode nodeInList, IEnumerable<SyntaxNode> newNodes)
+        {
+            LocalFunctionStatementSyntax newLocalMethodDeclaration = _localFunctionStatementSyntax.InsertNodesBefore(nodeInList, newNodes);
+
+            return new LocalMethodDeclarationSyntaxWrapper(newLocalMethodDeclaration);
+        }
+
+        public override MethodDeclarationSyntaxWrapperBase InsertChildAfter(SyntaxNode nodeInList, IEnumerable<SyntaxNode> newNodes)
+        {
+            LocalFunctionStatementSyntax newLocalMethodDeclaration = _localFunctionStatementSyntax.InsertNodesAfter(nodeInList, newNodes);
 
             return new LocalMethodDeclarationSyntaxWrapper(newLocalMethodDeclaration);
         }

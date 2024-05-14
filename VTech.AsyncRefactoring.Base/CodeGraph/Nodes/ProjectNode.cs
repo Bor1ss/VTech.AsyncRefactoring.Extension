@@ -1,5 +1,9 @@
-﻿namespace VTech.AsyncRefactoring.Base.CodeGraph.Nodes;
+﻿using Microsoft.CodeAnalysis;
+using System.Diagnostics;
 
+namespace VTech.AsyncRefactoring.Base.CodeGraph.Nodes;
+
+[DebuggerDisplay("{_project.Name}")]
 public class ProjectNode
 {
     private static string[] _skippableFiles = ["GlobalUsings.g.cs", ".AssemblyAttributes.cs", ".AssemblyInfo.cs"];

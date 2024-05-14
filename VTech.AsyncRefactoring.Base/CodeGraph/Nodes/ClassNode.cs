@@ -1,5 +1,8 @@
-﻿namespace VTech.AsyncRefactoring.Base.CodeGraph.Nodes;
+﻿using System.Diagnostics;
 
+namespace VTech.AsyncRefactoring.Base.CodeGraph.Nodes;
+
+[DebuggerDisplay("{_symbol.Name}")]
 public abstract class BaseTypeDeclarationNode
 {
     protected readonly ISymbol _symbol;

@@ -9,5 +9,6 @@ public sealed class GraphBuilderOptions
     public SemanticModel Model { get; set; }
     public DocumentNode Document { get; set; }
     public List<SemanticModel> AllSemanticModels { get; set; }
+    public Dictionary<string, HashSet<SemanticModel>> MethodSemanticModelsMap { get; set; }
 }
 
