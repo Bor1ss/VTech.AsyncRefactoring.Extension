@@ -1,9 +1,6 @@
 ﻿using System.Collections.Immutable;
 using System.Diagnostics;
 
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-
 using VTech.AsyncRefactoring.Base.Rules;
 using VTech.AsyncRefactoring.Base.Utils;
 
@@ -248,7 +245,9 @@ public class MethodNode
 
         bool isChanged = false;
 
-        if (!_isThridPartyApiImplemented && !_method.Name.EndsWith("Async", StringComparison.InvariantCultureIgnoreCase) && !_method.Name.Equals("main", StringComparison.CurrentCultureIgnoreCase))
+        bool isTaskReturned = _method.IsAsync || _method.ReturnType.IsTaskType();
+
+        if (!isTaskReturned && !_isThridPartyApiImplemented && !_method.Name.EndsWith("Async", StringComparison.InvariantCultureIgnoreCase) && !_method.Name.Equals("main", StringComparison.CurrentCultureIgnoreCase))
         {
             var newMethodName = _method.Name + "Async";
 
@@ -322,17 +321,8 @@ public class MethodNode
                 InvocationExpressionSyntax newInvocationNode = invocation.ReplaceNode(first, updatedNode)
                     .WithLeadingTrivia(SyntaxFactory.Whitespace(" "));
 
-                if (!_isThridPartyApiImplemented)
+                if (_isThridPartyApiImplemented && !isTaskReturned)
                 {
-                    AwaitExpressionSyntax awaitExpression = SyntaxFactory.AwaitExpression(newInvocationNode)
-                        .WithTrailingTrivia(invocation.GetTrailingTrivia())
-                        .WithLeadingTrivia(invocation.GetLeadingTrivia());
-
-                    nodeReplacements.Add(invocation, awaitExpression);
-                }
-                else
-                {
-
                     MemberAccessExpressionSyntax awaiterExpression = SyntaxFactory.MemberAccessExpression(
                         SyntaxKind.SimpleMemberAccessExpression,
                         newInvocationNode,
@@ -346,6 +336,14 @@ public class MethodNode
                     .WithLeadingTrivia(invocation.GetLeadingTrivia()); ;
 
                     nodeReplacements.Add(invocation, getResultInvocation);
+                }
+                else
+                {
+                    AwaitExpressionSyntax awaitExpression = SyntaxFactory.AwaitExpression(newInvocationNode)
+                        .WithTrailingTrivia(invocation.GetTrailingTrivia())
+                        .WithLeadingTrivia(invocation.GetLeadingTrivia());
+
+                    nodeReplacements.Add(invocation, awaitExpression);
                 }
 
                 isChanged = true;
