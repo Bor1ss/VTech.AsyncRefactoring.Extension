@@ -105,7 +105,7 @@ public class DocumentNode
         UsingDirectiveSyntax systemThreadingTaskUsingDirective = changedRoot
             .DescendantNodes()
             .OfType<UsingDirectiveSyntax>()
-            .FirstOrDefault(x => x.NamespaceOrType.Equals("System.Threading.Tasks"));
+            .FirstOrDefault(x => x.Name.ToFullString().Contains("System.Threading.Tasks"));
 
         if(systemThreadingTaskUsingDirective is null && !_customUsingAdded)
         {
