@@ -64,6 +64,7 @@ public class MethodNode
     public int Depth { get; private set; } = 0;
     public IReadOnlyList<MethodNode> InternalMethods => _internalMethods;
     public Location Location => _methodDeclaration.Node.GetLocation();
+    private bool _isThridPartyApiImplemented = false;
 
     public List<MethodNode> GetRelatedMethods()
     {
@@ -104,16 +105,20 @@ public class MethodNode
 
     internal void CompleteReferences(Dictionary<ISymbol, MethodNode> symbolMethodMap)
     {
-        if (_method.OverriddenMethod is not null)
+        if (_method.IsOverride && _method.OverriddenMethod is null)
         {
-            if(symbolMethodMap.TryGetValue( _method.OverriddenMethod, out var overidedMethod))
+            _isThridPartyApiImplemented = true;
+        }
+        else if (_method.OverriddenMethod is not null)
+        {
+            if (symbolMethodMap.TryGetValue(_method.OverriddenMethod, out var overidedMethod))
             {
                 _overidedMethod = overidedMethod;
                 _overidedMethod?.AddOverrider(this);
             }
             else
             {
-                //FORBID asynchronization - 3rd-party impelmentation
+                _isThridPartyApiImplemented = true;
             }
         }
         else
@@ -148,7 +153,7 @@ public class MethodNode
 
     internal void DetectIssues(IReadOnlyList<IRule> rules)
     {
-        if (_method is not IMethodSymbol methodSymbol || _methodDeclaration.Body is null)
+        if (_method is not IMethodSymbol methodSymbol || _methodDeclaration.Body is null || _isThridPartyApiImplemented)
         {
             return;
         }
@@ -193,7 +198,7 @@ public class MethodNode
             _methodInvocationAsynchronizationNeeded.Add(method);
         }
 
-        if (_method.IsAsync || IsAsyncNeeded)
+        if (_method.IsAsync || IsAsyncNeeded || _isThridPartyApiImplemented)
         {
             return;
         }
@@ -234,7 +239,7 @@ public class MethodNode
 
         Dictionary<SyntaxNode, SyntaxNode> nodeReplacements = [];
 
-        foreach(var key in _nodeReplacements.Keys)
+        foreach (var key in _nodeReplacements.Keys)
         {
             nodeReplacements.Add(key, _nodeReplacements[key]);
         }
@@ -243,7 +248,7 @@ public class MethodNode
 
         bool isChanged = false;
 
-        if (!_method.Name.EndsWith("Async", StringComparison.InvariantCultureIgnoreCase) && !_method.Name.Equals("main", StringComparison.CurrentCultureIgnoreCase))
+        if (!_isThridPartyApiImplemented && !_method.Name.EndsWith("Async", StringComparison.InvariantCultureIgnoreCase) && !_method.Name.Equals("main", StringComparison.CurrentCultureIgnoreCase))
         {
             var newMethodName = _method.Name + "Async";
 
@@ -265,7 +270,7 @@ public class MethodNode
         }
 
         bool isEnumerableReturned = false;
-        if (!IsTaskReturned)
+        if (!_isThridPartyApiImplemented && !IsTaskReturned)
         {
             var specType = "Task";
 
@@ -316,11 +321,32 @@ public class MethodNode
 
                 InvocationExpressionSyntax newInvocationNode = invocation.ReplaceNode(first, updatedNode)
                     .WithLeadingTrivia(SyntaxFactory.Whitespace(" "));
-                AwaitExpressionSyntax awaitExpression = SyntaxFactory.AwaitExpression(newInvocationNode)
-                    .WithTrailingTrivia(invocation.GetTrailingTrivia())
-                    .WithLeadingTrivia(invocation.GetLeadingTrivia());
 
-                nodeReplacements.Add(invocation, awaitExpression);
+                if (!_isThridPartyApiImplemented)
+                {
+                    AwaitExpressionSyntax awaitExpression = SyntaxFactory.AwaitExpression(newInvocationNode)
+                        .WithTrailingTrivia(invocation.GetTrailingTrivia())
+                        .WithLeadingTrivia(invocation.GetLeadingTrivia());
+
+                    nodeReplacements.Add(invocation, awaitExpression);
+                }
+                else
+                {
+
+                    MemberAccessExpressionSyntax awaiterExpression = SyntaxFactory.MemberAccessExpression(
+                        SyntaxKind.SimpleMemberAccessExpression,
+                        newInvocationNode,
+                        SyntaxFactory.IdentifierName("GetAwaiter"));
+
+                    MemberAccessExpressionSyntax getResultInvocation = SyntaxFactory.MemberAccessExpression(
+                        SyntaxKind.SimpleMemberAccessExpression,
+                        awaiterExpression,
+                        SyntaxFactory.IdentifierName("GetResult"))
+                    .WithTrailingTrivia(invocation.GetTrailingTrivia())
+                    .WithLeadingTrivia(invocation.GetLeadingTrivia()); ;
+
+                    nodeReplacements.Add(invocation, getResultInvocation);
+                }
 
                 isChanged = true;
             }
@@ -328,12 +354,12 @@ public class MethodNode
 
         var newMethodDeclaration = _methodDeclaration.ReplaceSyntax(nodeReplacements, tokenReplacements, null);
 
-        if (isEnumerableReturned && newMethodDeclaration.Body is not null)
+        if (!_isThridPartyApiImplemented && isEnumerableReturned && newMethodDeclaration.Body is not null)
         {
             newMethodDeclaration = ReplaceYield(newMethodDeclaration);
         }
 
-        if (_methodDeclaration.Body is not null && !newMethodDeclaration.Modifiers.Any(x => x.Text == "async"))
+        if (!_isThridPartyApiImplemented && _methodDeclaration.Body is not null && !newMethodDeclaration.Modifiers.Any(x => x.Text == "async"))
         {
             newMethodDeclaration = newMethodDeclaration.AddModifiers(SyntaxFactory.Token(SyntaxKind.AsyncKeyword));
         }
@@ -364,10 +390,10 @@ public class MethodNode
         GenericNameSyntax resultListTypeSyntax = SyntaxFactory.GenericName(SyntaxFactory.Identifier("List"), typeArgumentList);
         LocalDeclarationStatementSyntax listDeclarationSyntax = SyntaxFactory.LocalDeclarationStatement(
                 SyntaxFactory.VariableDeclaration(resultListTypeSyntax, SyntaxFactory.SingletonSeparatedList<VariableDeclaratorSyntax>(
-                                SyntaxFactory.VariableDeclarator(SyntaxFactory.Identifier(declaredListName).WithTrailingTrivia(SyntaxFactory.Space), null, 
+                                SyntaxFactory.VariableDeclarator(SyntaxFactory.Identifier(declaredListName).WithTrailingTrivia(SyntaxFactory.Space), null,
                                     SyntaxFactory.EqualsValueClause(
                                             SyntaxFactory.ObjectCreationExpression(SyntaxFactory.Token(SyntaxKind.NewKeyword).WithTrailingTrivia(SyntaxFactory.Space), resultListTypeSyntax, SyntaxFactory.ArgumentList(), null).WithLeadingTrivia(SyntaxFactory.Space)
-                                        )    
+                                        )
                                 )
                             )
                     )
@@ -504,10 +530,29 @@ public class MethodNode
                 return false;
             }
 
-            return otherSignature.Name.Equals(Name)
+            bool baseEquals = otherSignature.Name.Equals(Name)
                 && otherSignature.ReturnType.Equals(ReturnType, SymbolEqualityComparer.IncludeNullability)
-                && otherSignature.Params.Length == Params.Length
-                && otherSignature.Params.All(x => Params.FirstOrDefault(p => p.Equals(x, SymbolEqualityComparer.IncludeNullability)) is not null);
+                && otherSignature.Params.Length == Params.Length;
+
+            if(!baseEquals)
+            {
+                return false;
+            }
+
+            for(int i =0; i < Params.Length; i++)
+            {
+                var paramType = Params[i].Type;
+                var otherParamType = otherSignature.Params[i].Type;
+
+                if(SymbolEqualityComparer.Default.Equals(paramType, otherParamType))
+                {
+                    continue;
+                }
+
+                return false;
+            }
+
+            return true;
         }
 
         public override int GetHashCode()
