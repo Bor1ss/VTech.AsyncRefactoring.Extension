@@ -103,13 +103,27 @@ public class DocumentNode
         SyntaxTree changedTree = changedRoot.SyntaxTree;
 
         UsingDirectiveSyntax systemThreadingTaskUsingDirective = changedRoot
-            .ChildNodes()
+            .DescendantNodes()
             .OfType<UsingDirectiveSyntax>()
             .FirstOrDefault(x => x.NamespaceOrType.Equals("System.Threading.Tasks"));
 
         if(systemThreadingTaskUsingDirective is null && !_customUsingAdded)
         {
-            var newSourceText = changedRoot.SyntaxTree.GetText().WithChanges(new TextChange(new TextSpan(0, 0), $"using System.Threading.Tasks;{Environment.NewLine}"));
+            UsingDirectiveSyntax anyUsingDirective = changedRoot
+                .DescendantNodes()
+                .OfType<UsingDirectiveSyntax>()
+                .FirstOrDefault();
+
+            TextSpan insertAt = new(0, 0);
+            string postTrivia = string.Empty;
+            if (anyUsingDirective is not null)
+            {
+                insertAt = new TextSpan(anyUsingDirective.SpanStart, 0);
+                postTrivia = anyUsingDirective.GetLeadingTrivia().ToString();
+            }
+
+            var newSourceText = changedRoot.SyntaxTree.GetText().WithChanges(new TextChange(insertAt, $"using System.Threading.Tasks;{Environment.NewLine}{Environment.NewLine}{postTrivia}"));
+
             changedTree = changedRoot.SyntaxTree.WithChangedText(newSourceText);
         }
 
