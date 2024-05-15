@@ -48,7 +48,7 @@ internal class CodeGraphVisualizer : ICodeGraphVisualizer
 
         printPref += ">";
 
-        System.Console.WriteLine($"{printPref} {method.Id}");
+        System.Console.WriteLine($"{printPref} {method.Name}");
 
         System.Console.ForegroundColor = prevColor;
 

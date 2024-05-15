@@ -52,15 +52,17 @@ public class MethodNode
         _methodDeclaration = new MethodDeclarationSyntaxWrapper(node);
     }
 
-    public string Id => _method.Name;
+    public string Name => _method?.Name ?? "FakeName";
     private MethodSignature Signature { get; }
     internal IMethodSymbol Symbol => _method;
     public bool IsTaskReturned => _method.ReturnType.IsTaskType();
+    public bool IsAsync => _method.IsAsync;
     public bool IsAsyncNeeded { get; private set; }
     public bool IsAsynchronized { get; private set; }
     public int Depth { get; private set; } = 0;
     public IReadOnlyList<MethodNode> InternalMethods => _internalMethods;
-    public Location Location => _methodDeclaration.Node.GetLocation();
+    public Location Location => _methodDeclaration?.Node?.GetLocation() 
+        ?? Location.Create(_parent.Parent.Document.FilePath, new Microsoft.CodeAnalysis.Text.TextSpan(0, 0), new Microsoft.CodeAnalysis.Text.LinePositionSpan());
     private bool _isThridPartyApiImplemented = false;
 
     public List<MethodNode> GetRelatedMethods()
@@ -102,7 +104,8 @@ public class MethodNode
 
     internal void CompleteReferences(Dictionary<ISymbol, MethodNode> symbolMethodMap)
     {
-        if (_method.IsOverride && _method.OverriddenMethod is null)
+        
+        if (_method is null || _method.IsOverride && _method.OverriddenMethod is null)
         {
             _isThridPartyApiImplemented = true;
         }
@@ -195,7 +198,7 @@ public class MethodNode
             _methodInvocationAsynchronizationNeeded.Add(method);
         }
 
-        if (_method.IsAsync || IsAsyncNeeded || _isThridPartyApiImplemented)
+        if (IsAsync || IsAsyncNeeded || _isThridPartyApiImplemented)
         {
             return;
         }
@@ -245,11 +248,11 @@ public class MethodNode
 
         bool isChanged = false;
 
-        bool isTaskReturned = _method.IsAsync || _method.ReturnType.IsTaskType();
+        bool isTaskReturned = IsAsync || IsTaskReturned;
 
-        if (!isTaskReturned && !_isThridPartyApiImplemented && !_method.Name.EndsWith("Async", StringComparison.InvariantCultureIgnoreCase) && !_method.Name.Equals("main", StringComparison.CurrentCultureIgnoreCase))
+        if (!isTaskReturned && !_isThridPartyApiImplemented && !Name.EndsWith("Async", StringComparison.InvariantCultureIgnoreCase) && !_method.Name.Equals("main", StringComparison.CurrentCultureIgnoreCase))
         {
-            var newMethodName = _method.Name + "Async";
+            var newMethodName = Name + "Async";
 
             var newIdentifier = SyntaxFactory.Identifier(newMethodName)
                                             .WithLeadingTrivia(_methodDeclaration.Identifier.LeadingTrivia)

@@ -103,6 +103,15 @@ public sealed class GraphBuilder : CSharpSyntaxWalker
 
         if (methodSymbol == null) return;
 
+        //program.cs file with top level statements
+        if(_parentMethod is null && _baseNode is null)
+        {
+            _baseNode = new ClassNode(null, null, _options.Document);
+            _options.Document.AddTypeDeclaration(_baseNode);
+            _parentMethod = new MethodNode(null, null, _baseNode);
+            _baseNode.AddMethod(_parentMethod);
+        }
+
         MethodNode method = new(node, methodSymbol as IMethodSymbol, _baseNode!, _parentMethod);
         _baseNode!.AddMethod(method);
         _parentMethod.AddInternalMethod(method);

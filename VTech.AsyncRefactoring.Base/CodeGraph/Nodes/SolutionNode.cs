@@ -170,6 +170,7 @@ public class SolutionNode
             .ToList();
 
         Dictionary<ISymbol, BaseTypeDeclarationNode> typeSymbolMap = allTypes
+            .Where(x => x.Symbol is not null)
             .GroupBy(x => x.Symbol, SymbolEqualityComparer.Default)
             .ToDictionary(x => x.Key, x => x.First(), SymbolEqualityComparer.Default);
 
@@ -179,12 +180,13 @@ public class SolutionNode
         }
 
         Dictionary<ISymbol, MethodNode> symbolMethodMap = allTypes
+            .Where(x => x.Symbol is not null)
             .SelectMany(x => x.Methods)
             .ToDictionary(x => x.Symbol, x => x, SymbolEqualityComparer.Default);
 
         symbolInfoStorage.Fill(symbolMethodMap);
 
-        foreach (var methodNode in symbolMethodMap.Values)
+        foreach (var methodNode in allTypes.SelectMany(x => x.Methods))
         {
             methodNode.CompleteReferences(symbolMethodMap);
         }
