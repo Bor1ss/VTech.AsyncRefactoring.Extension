@@ -16,11 +16,11 @@ Currently, only methods and local functions are processed.
 
 In order to use the VS extension follow the next steps:
 1. Open context menu on any .cs file and select "Find and Fix async issues" 
-![Context menu](https://github.com/Bor1ss/VTech.AsyncRefactoring/blob/main/resources/instruction_start_type_selection.png?raw=true)
+![Context menu](https://github.com/Bor1ss/VTech.AsyncRefactoring.Extension/blob/main/resources/instruction_start_type_selection.png?raw=true)
 2. The next step is to select the start point, which will be used to create a processable code graph
-![Start method selection](https://github.com/Bor1ss/VTech.AsyncRefactoring/blob/main/resources/instructions_context_menu.png?raw=true)
+![Start method selection](https://github.com/Bor1ss/VTech.AsyncRefactoring.Extension/blob/main/resources/instructions_context_menu.png?raw=true)
 3. Press "Apply" and wait utill dialog with suggested changes appear. In case of huge solution it may take few minutes
-![Changes preview dialog](https://github.com/Bor1ss/VTech.AsyncRefactoring/blob/main/resources/instruction_changes_preview.png?raw=true)
+![Changes preview dialog](https://github.com/Bor1ss/VTech.AsyncRefactoring.Extension/blob/main/resources/instruction_changes_preview.png?raw=true)
 4. Select changes to be applied. 
 4.1. In case change is not required checkbox can be unmarked. 
 4.2  If required suggested change can be edited on dialog directly
