@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011" xmlns:d="http://schemas.microsoft.com/developer/vsx-schema-design/2011">
     <Metadata>
-        <Identity Id="VTech.AsyncRefactoring.VisualStudio.Extension.620531c8-941f-4fd2-aa21-47d99a2217be" Version="1.0" Language="en-US" Publisher="BorisK" />
+        <Identity Id="VTech.AsyncRefactoring.VisualStudio.Extension.620531c8-941f-4fd2-aa21-47d99a2217be" Version="1.0.1" Language="en-US" Publisher="BorisK" />
         <DisplayName>VTech.AsyncRefactoring.VisualStudio.Extension</DisplayName>
 		<Description xml:space="preserve">Blocking code detection and converting to asynchronous extension</Description>
         <MoreInfo>https://github.com/Bor1ss/VTech.AsyncRefactoring.Extension</MoreInfo>
