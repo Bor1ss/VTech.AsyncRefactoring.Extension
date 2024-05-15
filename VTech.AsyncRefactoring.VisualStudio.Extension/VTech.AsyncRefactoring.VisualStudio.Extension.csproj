@@ -85,21 +85,24 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Build.Locator">
-      <Version>1.7.1</Version>
+      <Version>1.7.8</Version>
     </PackageReference>
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces">
-      <Version>4.8.0</Version>
+      <Version>4.9.2</Version>
     </PackageReference>
     <PackageReference Include="Microsoft.CodeAnalysis.Workspaces.MSBuild">
-      <Version>4.8.0</Version>
+      <Version>4.9.2</Version>
     </PackageReference>
     <PackageReference Include="Microsoft.VisualStudio.LanguageServices">
-      <Version>4.8.0</Version>
+      <Version>4.9.2</Version>
     </PackageReference>
     <PackageReference Include="Microsoft.VisualStudio.SDK" Version="17.9.37000" ExcludeAssets="runtime">
       <IncludeAssets>compile; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.VSSDK.BuildTools" Version="17.9.3174" />
+    <PackageReference Include="Microsoft.VSSDK.BuildTools" Version="17.9.3184">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
   </ItemGroup>
   <ItemGroup>
     <VSCTCompile Include="Package.vsct">
