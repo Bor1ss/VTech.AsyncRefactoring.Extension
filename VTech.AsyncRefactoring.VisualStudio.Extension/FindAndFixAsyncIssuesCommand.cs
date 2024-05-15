@@ -63,7 +63,15 @@ internal sealed class FindAndFixAsyncIssuesCommand
     {
         ThreadHelper.ThrowIfNotOnUIThread();
 
-        DTE2 dte = ServiceProvider.GetServiceAsync(typeof(DTE)).Result as DTE2 ?? throw new Exception("DTE2 not found");
+        DTE2 dte = null;
+
+        ThreadHelper.JoinableTaskFactory.Run(async () => { dte = (await ServiceProvider.GetServiceAsync(typeof(DTE))) as DTE2; });
+
+        if(dte is null)
+        {
+            throw new Exception("DTE2 not found");
+        }
+
         Document activeDoc = dte.ActiveDocument;
 
         if (activeDoc is null || !string.Equals(activeDoc.Language, "csharp", StringComparison.CurrentCultureIgnoreCase))
