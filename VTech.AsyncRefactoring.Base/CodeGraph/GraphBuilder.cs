@@ -1,7 +1,4 @@
-﻿using System.Diagnostics;
-using System.Xml.Linq;
-
-using VTech.AsyncRefactoring.Base.CodeGraph;
+﻿using VTech.AsyncRefactoring.Base.CodeGraph;
 using VTech.AsyncRefactoring.Base.CodeGraph.Nodes;
 
 namespace VTech.AsyncRefactoring;
@@ -21,55 +18,52 @@ public sealed class GraphBuilder : CSharpSyntaxWalker
         _options = options;
     }
 
+    private void OnNext<T>(BaseTypeDeclarationNode newBase, T node, Action<T> next)
+    {
+        _options.Document.AddTypeDeclaration(newBase);
+        BaseTypeDeclarationNode oldBase = _baseNode;
+        _baseNode = newBase;
+        next(node);
+        _baseNode = oldBase;
+    }
+
     public override void VisitClassDeclaration(ClassDeclarationSyntax node)
     {
-        var symbol = GetSymbol(node, _options.Document.SemanticModel);
-        _baseNode = new ClassNode(symbol, node, _options.Document);
-        _options.Document.AddTypeDeclaration(_baseNode);
+        ISymbol symbol = GetSymbol(node, _options.Document.SemanticModel);
+        ClassNode classNode = new (symbol, node, _options.Document);
 
-        base.VisitClassDeclaration(node);
+        OnNext(classNode, node, base.VisitClassDeclaration);
     }
 
     public override void VisitInterfaceDeclaration(InterfaceDeclarationSyntax node)
     {
-        var symbol = GetSymbol(node, _options.Document.SemanticModel);
-        _baseNode = new InterfaceNode(symbol, node, _options.Document);
-        _options.Document.AddTypeDeclaration(_baseNode);
+        ISymbol symbol = GetSymbol(node, _options.Document.SemanticModel);
+        InterfaceNode interfaceNode = new (symbol, node, _options.Document);
 
-        base.VisitInterfaceDeclaration(node);
+        OnNext(interfaceNode, node, base.VisitInterfaceDeclaration);
     }
 
     public override void VisitStructDeclaration(StructDeclarationSyntax node)
     {
-        var symbol = GetSymbol(node, _options.Document.SemanticModel);
-        _baseNode = new StructNode(symbol, node, _options.Document);
-        _options.Document.AddTypeDeclaration(_baseNode);
+        ISymbol symbol = GetSymbol(node, _options.Document.SemanticModel);
+        StructNode structNode = new (symbol, node, _options.Document);
 
-        base.VisitStructDeclaration(node);
+        OnNext(structNode, node, base.VisitStructDeclaration);
     }
 
     public override void VisitRecordDeclaration(RecordDeclarationSyntax node)
     {
-        var symbol = GetSymbol(node, _options.Document.SemanticModel);
-        _baseNode = new RecordNode(symbol, node, _options.Document);
-        _options.Document.AddTypeDeclaration(_baseNode);
+        ISymbol symbol = GetSymbol(node, _options.Document.SemanticModel);
+        RecordNode recordNode = new (symbol, node, _options.Document);
 
-        base.VisitRecordDeclaration(node);
+        OnNext(recordNode, node, base.VisitRecordDeclaration);
     }
 
     public override void VisitMethodDeclaration(MethodDeclarationSyntax node)
     {
-        var methodSymbol = GetSymbol(node, _options.Document.SemanticModel);
+        ISymbol methodSymbol = GetSymbol(node, _options.Document.SemanticModel);
 
         if (methodSymbol == null) return;
-
-        //todo: callers to the method
-        //var callers = SymbolFinder
-        //      .FindCallersAsync(methodSymbol, _options.Document.Document.Project.Solution)
-        //      .Result
-        //      .Select(c => c.CallingSymbol)
-        //      .Distinct(SymbolEqualityComparer.Default)
-        //      .ToList();
 
         MethodNode method = new(node, methodSymbol as IMethodSymbol, _baseNode!);
         _baseNode!.AddMethod(method);
