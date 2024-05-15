@@ -29,7 +29,7 @@ internal class GetAwaiterGetResultRule : RuleBase
             (parent, methodSymbol, node) => node is MemberAccessExpressionSyntax maes && maes.Name.ToString() == "GetResult",
             (parent, methodSymbol, node) => node is InvocationExpressionSyntax,
             (parent, methodSymbol, node) => node is MemberAccessExpressionSyntax maes && maes.Name.ToString() == "GetAwaiter",
-            (parent, methodSymbol, node) => IsNodeOfTaskType(parent, methodSymbol, node)
+            (parent, methodSymbol, node) => IsNodeOfTaskType(parent, node)
         ];
 
         return result;

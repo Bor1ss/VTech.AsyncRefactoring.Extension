@@ -30,7 +30,7 @@ internal class WaitRule : RuleBase
             (parent, methodSymbol, node) => node is ExpressionStatementSyntax,
             (parent, methodSymbol, node) => node is InvocationExpressionSyntax,
             (parent, methodSymbol, node) => node is MemberAccessExpressionSyntax maes && maes.Name.ToString() == "Wait",
-            (parent, methodSymbol, node) => IsNodeOfTaskType(parent, methodSymbol, node)
+            (parent, methodSymbol, node) => IsNodeOfTaskType(parent, node)
         ];
 
         return result;

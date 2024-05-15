@@ -108,50 +108,19 @@ internal abstract class RuleBase : IRule
         return _expressions.ToList();
     }
 
+#pragma warning disable IDE0060 // Remove unused parameter
     private bool IsSkippable(SyntaxNode node)
+#pragma warning restore IDE0060 // Remove unused parameter
     {
         return false;
     }
 
     public abstract (SyntaxNode oldNode, SyntaxNode newNode) Fix(List<SyntaxNode> nodes);
 
-    protected bool IsNodeOfTaskType(BaseTypeDeclarationNode parent, IMethodSymbol methodSymbol, SyntaxNode node)
+    protected bool IsNodeOfTaskType(BaseTypeDeclarationNode parent, SyntaxNode node)
     {
         TypeInfo typeInfo = parent.Parent.SemanticModel.GetTypeInfo(node);
         return typeInfo.IsTaskType() || typeInfo.IsFuncReturnedTaskType();
-        if (typeInfo.IsTaskType() || typeInfo.IsFuncReturnedTaskType())
-        {
-            return true;
-        }
-
-        if (node is InvocationExpressionSyntax ies)
-        {
-            MethodNode method = _symbolInfoStorage[ies];
-
-            if (method is not null)
-            {
-                return method.IsTaskReturned;
-            }
-
-            IdentifierNameSyntax ident = ies.DescendantNodes().OfType<IdentifierNameSyntax>().FirstOrDefault();
-            if(ident is not null)
-            {
-                var typeSymbol = GetTypeSymbol(parent, ident);
-
-                _ = typeSymbol;
-
-                return typeSymbol?.IsTaskType() == true || typeSymbol?.IsFuncReturnedTaskType() == true;
-            }
-
-            return false;
-        };
-
-        if (node is IdentifierNameSyntax identifierName)
-        {
-            return GetTypeSymbol(parent, identifierName)?.IsTaskType() == true;
-        }
-
-        return false;
     }
 
     private ITypeSymbol GetTypeSymbol(BaseTypeDeclarationNode parent, IdentifierNameSyntax identifierName)

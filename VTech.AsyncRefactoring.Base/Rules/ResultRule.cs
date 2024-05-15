@@ -26,7 +26,7 @@ internal class ResultRule : RuleBase
         Func<BaseTypeDeclarationNode, IMethodSymbol, SyntaxNode, bool>[] result =
         [
             (parent, methodSymbol, node) => node is MemberAccessExpressionSyntax maes && maes.Name.ToString() == "Result",
-            (parent, methodSymbol, node) => IsNodeOfTaskType(parent, methodSymbol, node)
+            (parent, methodSymbol, node) => IsNodeOfTaskType(parent, node)
         ];
 
         return result;

@@ -144,7 +144,7 @@ public sealed class GraphBuilder : CSharpSyntaxWalker
             ? semanticModel.GetDeclaredSymbol(node)
             : semanticModel.GetSymbolInfo(node).Symbol;
         }
-        catch(Exception ex)
+        catch
         {
             return null;
         }
