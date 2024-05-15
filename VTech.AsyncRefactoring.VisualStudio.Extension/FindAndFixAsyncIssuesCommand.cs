@@ -15,6 +15,8 @@ using Microsoft.VisualStudio.Threading;
 
 using VTech.AsyncRefactoring.Base;
 using VTech.AsyncRefactoring.Base.MethodSelector;
+using VTech.AsyncRefactoring.VisualStudio.Extension.ChangesPreview;
+using VTech.AsyncRefactoring.VisualStudio.Extension.SearchOptionsSelection;
 
 using Task = System.Threading.Tasks.Task;
 
@@ -69,19 +71,27 @@ internal sealed class FindAndFixAsyncIssuesCommand
             throw new Exception("ActiveDocument not found");
         }
 
+        SearchOptionsSelectionDialog dialog = new();
+        bool? optionsSelected = dialog.ShowDialog();
+
+        if (optionsSelected != true)
+        {
+            return;
+        }
+
+        SearchOptions searchOptions = dialog.Context.GetResult();
+
         string projectId = activeDoc.ProjectItem.ContainingProject.Name;
         string codeFileId = dte.ActiveDocument.Name;
-
-        IMethodSelector methodSelector;
-
-        if (dte.ActiveDocument.Selection is not TextSelection textSelection)
+        IMethodSelector methodSelector = searchOptions.StartMethodSelectionType switch
         {
-            methodSelector = new FileRelatedMethodSelector(projectId, codeFileId);
-        }
-        else
-        {
-            methodSelector = new CoursorRelatedMethodSelector(projectId, codeFileId, textSelection.CurrentLine);
-        }
+            StartMethodSelectionType.All => new AllMethodSelector(),
+            StartMethodSelectionType.Project => new ProjectRelatedMethodSelector(projectId),
+            StartMethodSelectionType.Document => new FileRelatedMethodSelector(projectId, codeFileId),
+            StartMethodSelectionType.Selection when dte.ActiveDocument.Selection is not TextSelection => new FileRelatedMethodSelector(projectId, codeFileId),
+            StartMethodSelectionType.Selection when dte.ActiveDocument.Selection is TextSelection textSelection => new CoursorRelatedMethodSelector(projectId, codeFileId, textSelection.CurrentLine),
+            _ => throw new ArgumentOutOfRangeException()
+        };
 
         ExecuteAsync(methodSelector).ConfigureAwait(false);
     }

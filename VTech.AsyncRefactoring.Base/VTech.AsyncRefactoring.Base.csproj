@@ -150,6 +150,7 @@
     <Compile Include="MethodSelector\CoursorRelatedMethodSelector.cs" />
     <Compile Include="MethodSelector\FileRelatedMethodSelector.cs" />
     <Compile Include="MethodSelector\IMethodSelector.cs" />
+    <Compile Include="MethodSelector\ProjectRelatedMethodSelector.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Rules\GetAwaiterGetResultRule.cs" />
     <Compile Include="Rules\IRule.cs" />

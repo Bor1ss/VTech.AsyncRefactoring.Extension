@@ -46,11 +46,23 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="ChangesPreviewDialog.xaml.cs">
+    <Compile Include="ChangesPreview\ChangesPreviewContextViewModel.cs" />
+    <Compile Include="ChangesPreview\ChangesPreviewDialog.xaml.cs">
       <DependentUpon>ChangesPreviewDialog.xaml</DependentUpon>
     </Compile>
+    <Compile Include="ChangesPreview\DocumentChangesViewModel.cs" />
+    <Compile Include="ChangesPreview\ProjectChangesViewModel.cs" />
+    <Compile Include="ChangesPreview\TextChangeViewModel.cs" />
     <Compile Include="FindAndFixAsyncIssuesCommand.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="SearchOptionsSelection\SearchOptions.cs" />
+    <Compile Include="SearchOptionsSelection\SearchOptionsSelectionContextViewModel.cs" />
+    <Compile Include="SearchOptionsSelection\SearchOptionsSelectionDialog.xaml.cs">
+      <DependentUpon>SearchOptionsSelectionDialog.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="SearchOptionsSelection\StartMethodSelectionType.cs" />
+    <Compile Include="Shared\EnumToBooleanConverter.cs" />
+    <Compile Include="Shared\NotifiableBase.cs" />
     <Compile Include="VTech.AsyncRefactoring.VisualStudio.ExtensionPackage.cs" />
   </ItemGroup>
   <ItemGroup>
@@ -104,7 +116,11 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <Page Include="ChangesPreviewDialog.xaml">
+    <Page Include="ChangesPreview\ChangesPreviewDialog.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="SearchOptionsSelection\SearchOptionsSelectionDialog.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
