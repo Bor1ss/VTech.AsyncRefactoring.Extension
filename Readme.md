@@ -21,8 +21,8 @@ In order to use the VS extension follow the next steps:
 ![Start method selection](https://github.com/Bor1ss/VTech.AsyncRefactoring.Extension/blob/main/resources/instructions_context_menu.png?raw=true)
 3. Press "Apply" and wait utill dialog with suggested changes appear. In case of huge solution it may take few minutes
 ![Changes preview dialog](https://github.com/Bor1ss/VTech.AsyncRefactoring.Extension/blob/main/resources/instruction_changes_preview.png?raw=true)
-4. Select changes to be applied. 
-4.1. In case change is not required checkbox can be unmarked. 
+4. Select changes to be applied
+4.1. In case change is not required checkbox can be unmarked
 4.2  If required suggested change can be edited on dialog directly
 5. Press "Apply" and changes will be saved to file system
 
