@@ -1,5 +1,8 @@
 ﻿using System.Collections.Immutable;
 using System.Diagnostics;
+using System.Threading;
+
+using Microsoft.CodeAnalysis;
 
 using VTech.AsyncRefactoring.Base.Rules;
 using VTech.AsyncRefactoring.Base.Utils;
@@ -12,6 +15,12 @@ public class MethodNode
     private readonly BaseTypeDeclarationNode _parent;
     private readonly MethodDeclarationSyntaxWrapperBase _methodDeclaration;
     private readonly IMethodSymbol _method;
+
+    private bool _isThridPartyApiImplemented = false;
+    /// <summary>
+    /// True if method with the same signature, but sync/async exists
+    /// </summary>
+    private bool _duplicateMethodExist = false;
 
     private readonly List<ISymbol> _invocations = [];
 
@@ -61,7 +70,6 @@ public class MethodNode
     public int Depth { get; private set; } = 0;
     public IReadOnlyList<MethodNode> InternalMethods => _internalMethods;
     public Location Location => _methodDeclaration.Node.GetLocation();
-    private bool _isThridPartyApiImplemented = false;
 
     public List<MethodNode> GetRelatedMethods()
     {
@@ -98,6 +106,10 @@ public class MethodNode
     private void AddImplementer(MethodNode method)
     {
         _implemenetedByMethods.Add(method);
+    }
+    private void AddInvoker(MethodNode method)
+    {
+        _invokedByMethods.Add(method);
     }
 
     internal void CompleteReferences(Dictionary<ISymbol, MethodNode> symbolMethodMap)
@@ -141,16 +153,24 @@ public class MethodNode
             _invokedMethods.Add(t);
             t.AddInvoker(this);
         }
+
+        if(_duplicateMethodExist)
+        {
+            return;
+        }
+
+        MethodNode duplicateMethod = _parent.Methods.SingleOrDefault(x => x.Signature.IsAsyncDuplicate(Signature));
+        if (duplicateMethod is not null)
+        {
+            _duplicateMethodExist = true;
+            duplicateMethod._duplicateMethodExist = true;
+        }
     }
 
-    private void AddInvoker(MethodNode method)
-    {
-        _invokedByMethods.Add(method);
-    }
 
     internal void DetectIssues(IReadOnlyList<IRule> rules)
     {
-        if (_method is not IMethodSymbol methodSymbol || _methodDeclaration.Body is null || _isThridPartyApiImplemented)
+        if (_method is not IMethodSymbol methodSymbol || _methodDeclaration.Body is null || _isThridPartyApiImplemented && !IsTaskReturned)
         {
             return;
         }
@@ -195,7 +215,7 @@ public class MethodNode
             _methodInvocationAsynchronizationNeeded.Add(method);
         }
 
-        if (_method.IsAsync || IsAsyncNeeded || _isThridPartyApiImplemented)
+        if (_method.IsAsync || IsTaskReturned || IsAsyncNeeded || _isThridPartyApiImplemented || _duplicateMethodExist)
         {
             return;
         }
@@ -244,10 +264,9 @@ public class MethodNode
         Dictionary<SyntaxToken, SyntaxToken> tokenReplacements = [];
 
         bool isChanged = false;
+        bool isAsyncAfterChanges = IsTaskReturned;
 
-        bool isTaskReturned = _method.IsAsync || _method.ReturnType.IsTaskType();
-
-        if (!isTaskReturned && !_isThridPartyApiImplemented && !_method.Name.EndsWith("Async", StringComparison.InvariantCultureIgnoreCase) && !_method.Name.Equals("main", StringComparison.CurrentCultureIgnoreCase))
+        if (!_duplicateMethodExist && !IsTaskReturned && !_isThridPartyApiImplemented && !_method.Name.EndsWith("Async", StringComparison.InvariantCultureIgnoreCase) && !_method.Name.Equals("main", StringComparison.CurrentCultureIgnoreCase))
         {
             var newMethodName = _method.Name + "Async";
 
@@ -260,16 +279,8 @@ public class MethodNode
             isChanged = true;
         }
 
-        foreach (var detectedIssue in _detectedIssues)
-        {
-            var (oldNode, newNode) = detectedIssue.Rule.Fix(detectedIssue.Nodes);
-            nodeReplacements.Add(oldNode, newNode);
-
-            isChanged = true;
-        }
-
         bool isEnumerableReturned = false;
-        if (!_isThridPartyApiImplemented && !IsTaskReturned)
+        if (!_duplicateMethodExist && !_isThridPartyApiImplemented && !IsTaskReturned)
         {
             var specType = "Task";
 
@@ -286,7 +297,19 @@ public class MethodNode
 
             nodeReplacements.Add(_methodDeclaration.ReturnType, newReturnType);
 
+            isAsyncAfterChanges = true;
             isChanged = true;
+        }
+
+        if (isAsyncAfterChanges)
+        {
+            foreach (var detectedIssue in _detectedIssues)
+            {
+                var (oldNode, newNode) = detectedIssue.Rule.Fix(detectedIssue.Nodes);
+                nodeReplacements.Add(oldNode, newNode);
+
+                isChanged = true;
+            }
         }
 
         if (_methodInvocationAsynchronizationNeeded.Count > 0 && _methodDeclaration.Body is not null)
@@ -321,7 +344,7 @@ public class MethodNode
                 InvocationExpressionSyntax newInvocationNode = invocation.ReplaceNode(first, updatedNode)
                     .WithLeadingTrivia(SyntaxFactory.Whitespace(" "));
 
-                if (_isThridPartyApiImplemented && !isTaskReturned)
+                if (!isAsyncAfterChanges)
                 {
                     MemberAccessExpressionSyntax awaiterExpression = SyntaxFactory.MemberAccessExpression(
                         SyntaxKind.SimpleMemberAccessExpression,
@@ -352,16 +375,16 @@ public class MethodNode
 
         var newMethodDeclaration = _methodDeclaration.ReplaceSyntax(nodeReplacements, tokenReplacements, null);
 
-        if (!_isThridPartyApiImplemented && isEnumerableReturned && newMethodDeclaration.Body is not null)
+        if (!_duplicateMethodExist && !_isThridPartyApiImplemented && isEnumerableReturned && newMethodDeclaration.Body is not null)
         {
             newMethodDeclaration = ReplaceYield(newMethodDeclaration);
         }
 
-        if (!_isThridPartyApiImplemented && _methodDeclaration.Body is not null && !newMethodDeclaration.Modifiers.Any(x => x.Text == "async"))
+        if (!_duplicateMethodExist && !_isThridPartyApiImplemented && _methodDeclaration.Body is not null && !newMethodDeclaration.Modifiers.Any(x => x.Text == "async"))
         {
             newMethodDeclaration = newMethodDeclaration.AddModifiers(SyntaxFactory.Token(SyntaxKind.AsyncKeyword));
         }
-
+        //Thread.Sleep(1000);
         if (isChanged)
         {
             if (_parentMethod is not null)
@@ -511,6 +534,64 @@ public class MethodNode
             _method = method;
         }
 
+        public bool IsAsyncDuplicate(MethodSignature otherSignature)
+        {
+            if (otherSignature is null && this is null)
+            {
+                return true;
+            }
+
+            if (otherSignature is null || this is null)
+            {
+                return false;
+            }
+
+            if (SymbolEqualityComparer.Default.Equals(_method, otherSignature._method)
+                || SymbolEqualityComparer.Default.Equals(ReturnType, otherSignature.ReturnType))
+            {
+                return false;
+            }
+
+            bool isOfSameName = otherSignature.Name.Equals(Name)
+                || otherSignature.Name.Equals(Name.Replace("Async", ""))
+                || otherSignature.Name.Replace("Async", "").Equals(Name);
+
+            if (!isOfSameName)
+            {
+                return false;
+            }
+
+            if (Params.Length == 0 && otherSignature.Params.Length == 0)
+            {
+                return true;
+            }
+
+            int paramsLengthDif = Math.Abs(Params.Length - otherSignature.Params.Length);
+            if (paramsLengthDif > 1)
+            {
+                return false;
+            }
+
+            var nonCorrespondingParams = Params.Except(otherSignature.Params, SymbolEqualityComparer.Default)
+                .OfType<IParameterSymbol>()
+                .ToList();
+
+            if (nonCorrespondingParams.Count > 1)
+            {
+                return false;
+            }
+            if (nonCorrespondingParams.Count == 0)
+            {
+                return true;
+            }
+
+            IParameterSymbol nonCorrespondingParam = nonCorrespondingParams[0];
+
+            string @namespace = nonCorrespondingParam.Type?.ContainingNamespace?.ToString();
+            string type = nonCorrespondingParam.Type?.Name;
+            return type == "CancellationToken" && @namespace == "System.Threading";
+        }
+
         public override bool Equals(object obj)
         {
             if (obj is null && this is null)
@@ -520,7 +601,7 @@ public class MethodNode
 
             if (obj is null || this is null)
             {
-                return true;
+                return false;
             }
 
             if (obj is not MethodSignature otherSignature)
@@ -532,17 +613,17 @@ public class MethodNode
                 && otherSignature.ReturnType.Equals(ReturnType, SymbolEqualityComparer.IncludeNullability)
                 && otherSignature.Params.Length == Params.Length;
 
-            if(!baseEquals)
+            if (!baseEquals)
             {
                 return false;
             }
 
-            for(int i =0; i < Params.Length; i++)
+            for (int i = 0; i < Params.Length; i++)
             {
                 var paramType = Params[i].Type;
                 var otherParamType = otherSignature.Params[i].Type;
 
-                if(SymbolEqualityComparer.Default.Equals(paramType, otherParamType))
+                if (SymbolEqualityComparer.Default.Equals(paramType, otherParamType))
                 {
                     continue;
                 }
@@ -560,6 +641,35 @@ public class MethodNode
             hashCode = hashCode * -1521134295 + EqualityComparer<string>.Default.GetHashCode(Name);
             hashCode = hashCode * -1521134295 + Params.GetHashCode();
             return hashCode;
+        }
+    }
+
+    class ParameterSymbolEqulaityComparer : IEqualityComparer<IParameterSymbol>
+    {
+        public bool Equals(IParameterSymbol x, IParameterSymbol y)
+        {
+            if (x is null && y is null)
+            {
+                return true;
+            }
+
+            if (x is null || y is null)
+            {
+                return false;
+            }
+
+            bool typeEquals = SymbolEqualityComparer.Default.Equals(x.Type, y.Type);
+            if(!typeEquals)
+            {
+                return false;
+            }
+
+            return string.Equals(x.Name, y.Name, StringComparison.OrdinalIgnoreCase); 
+        }
+
+        public int GetHashCode(IParameterSymbol obj)
+        {
+            return obj.Type.GetHashCode();
         }
     }
 
